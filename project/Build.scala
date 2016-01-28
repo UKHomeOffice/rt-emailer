@@ -12,24 +12,8 @@ object Build extends Build {
   val conf = ConfigFactory.parseFile(new File("rpm.conf")).resolve()
   val appName = conf.getString("app.name")
   val appVersion = "1.0-SNAPSHOT"
-  val rpmVersion = version_conf.getString("version")
   val appSummary = conf.getString("app.summary")
   val appDescription = conf.getString("app.description")
-
-  // Rpm specific settings
-  val rpmrelease = if (System.getenv("BUILD_NUMBER") == null) "1" else System.getenv("BUILD_NUMBER")
-  val rpmurl = Option(conf.getString("rpm.url"))
-  val rpmgroup = Option(conf.getString("rpm.group"))
-  val rpmlicense = Option(conf.getString("rpm.license"))
-  val rpmvendor = conf.getString("rpm.vendor")
-  val rpmpackager = Option(conf.getString("rpm.packager"))
-  val rpmpre = Option( """|getent group %{name} >/dev/null || groupadd -r %{name}
-                         |getent passwd %{name} >/dev/null || /usr/sbin/useradd -M -r -g %{name} -c "%{summary}" -d "/usr/share/%{name}" %{name}
-                         | """.stripMargin)
-  val rpmpost = Option("/sbin/chkconfig --add %{name}")
-  val rpmpreun = Option("if [ \"$1\" = 0 ] ; then service %{name} stop > /dev/null 2>&1 ; chkconfig --del %{name} ; fi ; exit 0")
-  val rpmpostun = Option("if [ \"$1\" -ge 1 ]; then service %{name} condrestart >/dev/null 2>&1 ; fi ; exit 0")
-  val rpmreqs: Seq[String] = conf.getString("rpm.reqs").split(",")
 
   val dependencies = Seq(
     "org.clapper" %% "grizzled-slf4j" % "1.0.2",
@@ -68,25 +52,10 @@ object Build extends Build {
     .settings(mappings in Universal ++= (baseDirectory.value / "bin/" ***).filter(_.isFile).get map {
       file: File => file -> ("bin/" + file.getName)
     })
-    .settings(mappings in Universal ++= (baseDirectory.value / "ops/config.yml" ***).filter(_.isFile).get map {
-      file: File => file -> ("conf/" + "rt-emailer.yml")
-    })
     .settings(
       name in Rpm := appName,
-      version in Rpm := rpmVersion,
-      rpmRelease := rpmrelease,
       packageSummary := appSummary,
-      rpmVendor := rpmvendor,
-      rpmUrl := rpmurl,
-      rpmLicense := rpmlicense,
-      packageDescription := appDescription,
-      rpmPre := rpmpre,
-      rpmPost := rpmpost,
-      rpmPreun := rpmpreun,
-      rpmPostun := rpmpostun,
-      rpmGroup := rpmgroup,
-      rpmPackager := rpmpackager,
-      rpmRequirements := rpmreqs
+      packageDescription := appDescription
     )
     .settings(assemblyJarName in assembly := s"$appName-$appVersion.jar")
 
