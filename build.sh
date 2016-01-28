@@ -1,14 +1,20 @@
 #!/bin/sh
+echo "[build.sh] Building with Activator!"
+
 
 # Read app version from root level version.properties
-caseworkerVersion=$(grep -i ^version ../version.properties | cut -d'=' -f 2)
+rtEmailerVersion=$(grep -i ^version ./version.properties | cut -d'=' -f 2)
+
 
 # Write app version and build number to conf/version.conf
 export build_number=${BUILD_NUMBER:-1}
-echo "buildNumber=\""$caseworkerVersion"-"$BUILD_NUMBER\" > src/main/resources/version.conf
+echo "rt-emailer-version=\""$rtIntegServiceVersion"-"$BUILD_NUMBER\" > src/main/resources/version.conf
 
-echo "[build.sh] building with Activator!"
-./activator clean compile test publish rpm:package-bin
+
+# Ensure working directory is local to this script
+cd "$(dirname "$0")"
+
+./activator clean update test one-jar -Dsbt.log.noformat=true
 
 if [ $? -ne 0 ]; then
   echo "[build.sh] failure"
