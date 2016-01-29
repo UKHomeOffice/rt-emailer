@@ -12,7 +12,7 @@
 
 ### Fill in these bits:
 JAVA_OPTS="-Dsbt.log.noformat=true"
-START_CMD="\"java $JAVA_OPTS -jar /usr/share/rt-emailer/rt-emailer.jar -c /etc/rt-emailer/application.conf >> /var/log/rt-emailer/rt-emailer-startup.log 2>&1 &\""
+START_CMD="\"java $JAVA_OPTS -jar /usr/share/rt-emailer/rt-emailer.jar -c /etc/rt-emailer/rt-emailer.conf >> /var/log/rt-emailer/rt-emailer-startup.log 2>&1 &\""
 NAME="rt-emailer"
 PGREP_STRING="/usr/share/rt-emailer/rt-emailer.jar"
 PID_FILE="/var/run/rt-emailer/rt-emailer.pid"
