@@ -14,7 +14,7 @@ echo "rt-emailer-version=\""$rtIntegServiceVersion"-"$BUILD_NUMBER\" > src/main/
 # Ensure working directory is local to this script
 cd "$(dirname "$0")"
 
-./activator clean update test one-jar -Dsbt.log.noformat=true
+./activator clean compile test publish
 
 if [ $? -ne 0 ]; then
   echo "[build.sh] failure"
