@@ -23,12 +23,9 @@ assemblyExcludedJars in assembly := {
 }
 
 assemblyMergeStrategy in assembly := {
-  case "logback.xml" => MergeStrategy.first
   case PathList("META-INF", "MANIFEST.MF") => MergeStrategy.discard
   case PathList(ps @ _*) if ps.last endsWith ".java" => MergeStrategy.discard
-  case x =>
-    val oldStrategy = (assemblyMergeStrategy in assembly).value
-    oldStrategy(x)
+  case _ => MergeStrategy.first
 }
 
 test in assembly := {}
