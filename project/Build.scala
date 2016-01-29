@@ -1,11 +1,8 @@
-import sbt._
-import sbtassembly.AssemblyPlugin.autoImport._
-import com.typesafe.sbt.packager.Keys._
-import sbt.Keys._
-import com.typesafe.sbt.packager.archetypes.{JavaServerAppPackaging, ServerLoader}
-import com.typesafe.sbt.packager.Keys._
-import com.typesafe.sbt.SbtNativePackager._
 import com.typesafe.config._
+import com.typesafe.sbt.SbtNativePackager._
+import com.typesafe.sbt.packager.archetypes.JavaServerAppPackaging
+import sbt.Keys._
+import sbt._
 
 object Build extends Build {
   val version_conf = ConfigFactory.parseFile(new File("version.properties")).resolve()
@@ -52,12 +49,6 @@ object Build extends Build {
     .settings(mappings in Universal ++= (baseDirectory.value / "bin/" ***).filter(_.isFile).get map {
       file: File => file -> ("bin/" + file.getName)
     })
-    .settings(
-      name in Rpm := appName,
-      packageSummary := appSummary,
-      packageDescription := appDescription
-    )
-    .settings(assemblyJarName in assembly := s"$appName-$appVersion.jar")
 
   def existsLocallyAndNotOnJenkins(filePath: String) = file(filePath).exists && !file(filePath + "/nextBuildNumber").exists()
 
