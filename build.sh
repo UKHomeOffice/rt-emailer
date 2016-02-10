@@ -20,5 +20,11 @@ if [ $? -ne 0 ]; then
   echo "[build.sh] failure"
   exit 1
 else
-  echo "[build.sh] done"
+  ./activator coverage test
+    if [ $? -ne 0 ]; then
+      echo "[build.sh] failure"
+      exit 1
+    else
+      echo "[build.sh] done"
+    fi
 fi
