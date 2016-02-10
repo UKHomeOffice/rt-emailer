@@ -10,4 +10,4 @@ addSbtPlugin("com.typesafe.sbt" % "sbt-native-packager" % "1.0.0")
 
 addSbtPlugin("me.lessis" % "bintray-sbt" % "0.1.1")
 
-addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.0.4")
+addSbtPlugin("org.scoverage" % "sbt-scoverage" % "1.3.5")
