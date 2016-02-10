@@ -16,6 +16,7 @@ import java.util.Scanner
 
 class EmailerIntegrationSpec extends WordSpec with MongoSpecSupport with GreenMailHelper with MustMatchers with MockitoSugar with BeforeAndAfter {
   val sender = EmailAddress("jonny.cavell@gmail.com", "Jonny Cavell")
+  val replyTo = EmailAddress("replyto@test.com", "Reply To")
   val emailRepository = new EmailRepository(mongoConnectorForTest)
   val processLockRepository = new ProcessLockRepository(mongoConnectorForTest)
 
@@ -25,7 +26,7 @@ class EmailerIntegrationSpec extends WordSpec with MongoSpecSupport with GreenMa
 
     "result in that message with invalid email not ending up in the GreenMail message queue" in {
       val emailSender = new EmailSender(GreenMailHelper.smtpConfig)
-      val emailer = new Emailer(emailRepository, emailSender, sender, 5, processLockRepository)
+      val emailer = new Emailer(emailRepository, emailSender, sender, replyTo, 5, processLockRepository)
 
       val emailObj1 = Email(
         caseId = Some(new ObjectId().toString),
@@ -50,7 +51,7 @@ class EmailerIntegrationSpec extends WordSpec with MongoSpecSupport with GreenMa
     "result in that message with email ending up in the GreenMail message queue" in {
 
       val emailSender = new EmailSender(GreenMailHelper.smtpConfig)
-      val emailer = new Emailer(emailRepository, emailSender, sender, 5, processLockRepository)
+      val emailer = new Emailer(emailRepository, emailSender, sender, replyTo, 5, processLockRepository)
 
       val emailObj1 = Email(
         caseId = Some(new ObjectId().toString),
@@ -94,7 +95,8 @@ class EmailerIntegrationSpec extends WordSpec with MongoSpecSupport with GreenMa
         recipient = "jonny.cavell@gmail.com",
         ccList = List("a@a.com", "b@b.com"),
         subject = "Your Registered Traveller application has been received",
-        message = "This is some text")
+        message = "This is some text",
+        replyTo = Some(replyTo))
 
       // Longer time needed for virtual environments with less resources
       Thread.sleep(1000)
@@ -121,7 +123,8 @@ class EmailerIntegrationSpec extends WordSpec with MongoSpecSupport with GreenMa
         recipient = "jonny.cavell@gmail.com",
         subject = "This is a test email with an attachment",
         message = "There should be an attachment",
-        attachments = Vector(attachment)
+        attachments = Vector(attachment),
+        replyTo = Some(replyTo)
       )
 
       // Longer time needed for virtual environments with less resources
@@ -138,6 +141,9 @@ class EmailerIntegrationSpec extends WordSpec with MongoSpecSupport with GreenMa
       val fromAddress = GreenMailHelper.getReceivedMessages.last.getFrom.head.toString
       fromAddress must include(sender.name)
       fromAddress must include(sender.email)
+      val replyToAddress = GreenMailHelper.getReceivedMessages.last.getReplyTo.head.toString
+      replyToAddress must include(replyTo.name)
+      replyToAddress must include(replyTo.email)
     }
   }
 

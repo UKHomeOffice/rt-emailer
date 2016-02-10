@@ -6,7 +6,7 @@ import domain.core.email.EmailStatus._
 import grizzled.slf4j.Logging
 import org.apache.commons.mail.EmailException
 
-class Emailer(emailRepository: EmailRepository, emailSender: EmailSender, sender: EmailAddress, pollingFrequency: Int, override val processLockRepository: ProcessLockRepository) extends ProcessLocking with Logging {
+class Emailer(emailRepository: EmailRepository, emailSender: EmailSender, sender: EmailAddress, replyTo: EmailAddress, pollingFrequency: Int, override val processLockRepository: ProcessLockRepository) extends ProcessLocking with Logging {
   private val emailType = "WAITING_CUSTOMER_EMAILS"
 
   def sendEmails() = try {
@@ -20,7 +20,7 @@ class Emailer(emailRepository: EmailRepository, emailSender: EmailSender, sender
   def sendEmail(email: Email) {
     try {
       logger.info(s"Sending email to ${email.recipient}")
-      emailSender.sendMessage(sender = sender, recipient = email.recipient, ccList = email.cc, subject = email.subject, message = email.text, html = Some(email.html))
+      emailSender.sendMessage(sender = sender, recipient = email.recipient, ccList = email.cc, subject = email.subject, message = email.text, html = Some(email.html), replyTo = Some(replyTo))
       logger.info("Marking email as sent")
       emailRepository.updateStatus(email.emailId, STATUS_SENT)
     } catch {

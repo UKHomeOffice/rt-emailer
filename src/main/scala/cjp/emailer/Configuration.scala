@@ -15,6 +15,8 @@ class Configuration {
   @BeanProperty var smtpServerPassword: String = null
   @BeanProperty var sender: String = null
   @BeanProperty var senderName: String = null
+  @BeanProperty var replyTo: String = null
+  @BeanProperty var replyToName: String = null
   @BeanProperty var pollingFrequency: Int = 5
   @BeanProperty var loggerxml: String = null
   @BeanProperty var port: Int = 8085

@@ -73,6 +73,11 @@ object EmailService {
       case None =>
     }
 
+    emailMessage.replyTo match  {
+      case Some(em) => email.addReplyTo(em.email, em.name)
+      case None =>
+    }
+
     val emailToSend = email.addTo(emailMessage.recipient)
       .setFrom(emailMessage.from.email, emailMessage.from.name)
       .setSubject(emailMessage.subject)

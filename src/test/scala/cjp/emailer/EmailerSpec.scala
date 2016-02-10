@@ -20,7 +20,8 @@ class EmailerSpec extends WordSpec with BeforeAndAfter with MustMatchers with Mo
   val processLockRepository = mock[ProcessLockRepository]
   val emailSender = mock[EmailSender]
   val sender = EmailAddress("", "")
-  val emailer = new Emailer(emailRepository, emailSender, sender, 5, processLockRepository)
+  val replyTo = EmailAddress("", "")
+  val emailer = new Emailer(emailRepository, emailSender, sender, replyTo, 5, processLockRepository)
   val PROVISIONAL_ACCEPTANCE = "PROVISIONAL_ACCEPTANCE"
 
   "Emailer" should {
@@ -31,7 +32,7 @@ class EmailerSpec extends WordSpec with BeforeAndAfter with MustMatchers with Mo
 
       emailer.sendEmails()
 
-      verify(emailSender, times(0)).sendMessage(any(), anyString(), any[List[String]], anyString(), anyString(), any(), any())
+      verify(emailSender, times(0)).sendMessage(any(), anyString(), any[List[String]], anyString(), anyString(), any(), any(), any())
       verify(emailRepository, times(0)).updateStatus(anyString(), any())
     }
 
@@ -60,7 +61,7 @@ class EmailerSpec extends WordSpec with BeforeAndAfter with MustMatchers with Mo
 
       emailer.sendEmails()
 
-      verify(emailSender, times(2)).sendMessage(any(), anyString(), any[List[String]], anyString(), any(), any(),any())
+      verify(emailSender, times(2)).sendMessage(any(), anyString(), any[List[String]], anyString(), any(), any(),any(), any())
       verify(emailRepository, times(2)).updateStatus(anyString(), any())
     }
   }
