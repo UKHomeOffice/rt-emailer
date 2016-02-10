@@ -20,7 +20,7 @@ if [ $? -ne 0 ]; then
   echo "[build.sh] failure"
   exit 1
 else
-  ./activator coverage test
+  ./activator coverage test coverageReport
     if [ $? -ne 0 ]; then
       echo "[build.sh] failure"
       exit 1
