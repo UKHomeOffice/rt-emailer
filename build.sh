@@ -14,17 +14,11 @@ echo "rt-emailer-version=\""$rtEmailerVersion"-"$BUILD_NUMBER\" > src/main/resou
 # Ensure working directory is local to this script
 cd "$(dirname "$0")"
 
-./activator clean update test assembly publish
+./activator clean update coverage test coverageReport coverageOff assembly publish
 
 if [ $? -ne 0 ]; then
   echo "[build.sh] failure"
   exit 1
 else
-  ./activator coverage test coverageReport
-    if [ $? -ne 0 ]; then
-      echo "[build.sh] failure"
-      exit 1
-    else
-      echo "[build.sh] done"
-    fi
+  echo "[build.sh] done"
 fi
