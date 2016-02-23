@@ -52,7 +52,7 @@ object Main extends Logging {
         val emailRepository = new EmailRepository(config.getMongoDBConnector)
         val emailSender = new EmailSender(config.toSmtpConfig)
         val processLockRepository = new ProcessLockRepository(config.getMongoDBConnector)
-        val emailer = new Emailer(emailRepository, emailSender, EmailAddress(config.sender, config.senderName), EmailAddress(config.replyTo, config.replyToName), config.pollingFrequency, processLockRepository)
+        val emailer = new Emailer(emailRepository, emailSender, EmailAddress(config.sender, config.senderName), Some(EmailAddress(config.replyTo, config.replyToName)), config.pollingFrequency, processLockRepository)
         emailer.start() // blocks this thread
 
       case None => println("Config file does not exist")

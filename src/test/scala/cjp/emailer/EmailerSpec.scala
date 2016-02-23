@@ -1,14 +1,14 @@
 package cjp.emailer
 
-import caseworkerdomain.lock.ProcessLockRepository
-import domain.core.email.EmailStatus._
-import domain.core.email._
 import org.bson.types.ObjectId
 import org.joda.time.DateTime
 import org.mockito.Matchers._
 import org.mockito.Mockito._
 import org.scalatest.mock.MockitoSugar
 import org.scalatest.{BeforeAndAfter, MustMatchers, WordSpec}
+import caseworkerdomain.lock.ProcessLockRepository
+import domain.core.email.EmailStatus._
+import domain.core.email._
 
 class EmailerSpec extends WordSpec with BeforeAndAfter with MustMatchers with MockitoSugar {
 
@@ -21,7 +21,7 @@ class EmailerSpec extends WordSpec with BeforeAndAfter with MustMatchers with Mo
   val emailSender = mock[EmailSender]
   val sender = EmailAddress("", "")
   val replyTo = EmailAddress("", "")
-  val emailer = new Emailer(emailRepository, emailSender, sender, replyTo, 5, processLockRepository)
+  val emailer = new Emailer(emailRepository, emailSender, sender, Some(replyTo), 5, processLockRepository)
   val PROVISIONAL_ACCEPTANCE = "PROVISIONAL_ACCEPTANCE"
 
   "Emailer" should {

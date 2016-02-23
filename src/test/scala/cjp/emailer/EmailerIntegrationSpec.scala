@@ -1,18 +1,17 @@
 package cjp.emailer
 
-import caseworkerdomain.lock.ProcessLockRepository
-import org.scalatest.{BeforeAndAfter, WordSpec}
-import org.scalatest.matchers.MustMatchers
-import domain.core.email._
-import domain.core.email.EmailStatus._
-import org.scalatest.mock.MockitoSugar
+import java.io.{FileWriter, InputStream}
+import java.nio.file.Files
+import java.util.Scanner
+import javax.mail.util.SharedByteArrayInputStream
 import org.bson.types.ObjectId
 import org.joda.time.DateTime
-import scala.Some
-import java.nio.file.Files
-import java.io.{InputStream, FileWriter}
-import javax.mail.util.SharedByteArrayInputStream
-import java.util.Scanner
+import org.scalatest.matchers.MustMatchers
+import org.scalatest.mock.MockitoSugar
+import org.scalatest.{BeforeAndAfter, WordSpec}
+import caseworkerdomain.lock.ProcessLockRepository
+import domain.core.email.EmailStatus._
+import domain.core.email._
 
 class EmailerIntegrationSpec extends WordSpec with MongoSpecSupport with GreenMailHelper with MustMatchers with MockitoSugar with BeforeAndAfter {
   val sender = EmailAddress("jonny.cavell@gmail.com", "Jonny Cavell")
@@ -26,7 +25,7 @@ class EmailerIntegrationSpec extends WordSpec with MongoSpecSupport with GreenMa
 
     "result in that message with invalid email not ending up in the GreenMail message queue" in {
       val emailSender = new EmailSender(GreenMailHelper.smtpConfig)
-      val emailer = new Emailer(emailRepository, emailSender, sender, replyTo, 5, processLockRepository)
+      val emailer = new Emailer(emailRepository, emailSender, sender, Some(replyTo), 5, processLockRepository)
 
       val emailObj1 = Email(
         caseId = Some(new ObjectId().toString),
@@ -51,7 +50,7 @@ class EmailerIntegrationSpec extends WordSpec with MongoSpecSupport with GreenMa
     "result in that message with email ending up in the GreenMail message queue" in {
 
       val emailSender = new EmailSender(GreenMailHelper.smtpConfig)
-      val emailer = new Emailer(emailRepository, emailSender, sender, replyTo, 5, processLockRepository)
+      val emailer = new Emailer(emailRepository, emailSender, sender, Some(replyTo), 5, processLockRepository)
 
       val emailObj1 = Email(
         caseId = Some(new ObjectId().toString),
