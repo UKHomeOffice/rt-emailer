@@ -8,7 +8,7 @@ object Build extends Build {
   val version_conf = ConfigFactory.parseFile(new File("version.properties")).resolve()
   val conf = ConfigFactory.parseFile(new File("rpm.conf")).resolve()
   val appName = conf.getString("app.name")
-  val appVersion = "1.2.0-SNAPSHOT"
+  val appVersion = "1.2.0"
   val appSummary = conf.getString("app.summary")
   val appDescription = conf.getString("app.description")
 
