@@ -25,12 +25,9 @@ object Build extends Build {
     "com.icegreen" % "greenmail" % "1.3.1b" % "test",
     "com.github.finagle" %% "finch-core" % "0.3.0",
     "com.github.finagle" %% "finch-json" % "0.3.0",
-    "org.specs2" %% "specs2-core" % "3.6.2" % "test" withSources(),
-    "org.specs2" %% "specs2-mock" % "3.6.2" % "test" withSources(),
-    "org.specs2" %% "specs2-matcher-extra" % "3.6.2" % "test" withSources(),
-    "org.specs2" %% "specs2-junit" % "3.6.2" % "test" withSources(),
-    "org.mockito" % "mockito-all" % "1.10.19" % "test" withSources(),
-    "org.scalatest" %% "scalatest" % "2.2.4" % "test" withSources()
+    "org.scalatest" %% "scalatest" % "2.2.4" % "test" withSources(),
+    "uk.gov.homeoffice" %% "rtp-test-lib" % "1.2.0-SNAPSHOT" withSources(),
+    "uk.gov.homeoffice" %% "rtp-test-lib" % "1.2.0-SNAPSHOT" % Test classifier "tests" withSources()
   )
 
   lazy val emailer = Project(appName, file("."))
@@ -69,8 +66,8 @@ object Build extends Build {
 
     emailer.settings(
       libraryDependencies ++= Seq(
-        "uk.gov.homeoffice" %% "rtp-caseworker-domain-lib" % "1.2.0-SNAPSHOT" withSources(),
-        "uk.gov.homeoffice" %% "rtp-caseworker-domain-lib" % "1.2.0-SNAPSHOT" % Test classifier "tests" withSources()
+        "uk.gov.homeoffice" %% "rtp-caseworker-domain-lib" % "1.5.0-SNAPSHOT" withSources(),
+        "uk.gov.homeoffice" %% "rtp-caseworker-domain-lib" % "1.5.0-SNAPSHOT" % Test classifier "tests" withSources()
       )
     )
   }
