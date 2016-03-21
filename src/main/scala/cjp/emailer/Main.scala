@@ -2,8 +2,6 @@ package cjp.emailer
 
 import java.net.InetSocketAddress
 
-import caseworkerdomain.lock.ProcessLockRepository
-import domain.core.email.EmailRepository
 import cjp.emailer.Config._
 import com.twitter.finagle.Service
 import com.twitter.finagle.builder.ServerBuilder
@@ -15,6 +13,8 @@ import io.finch.json._
 import io.finch.json.finch._
 import org.yaml.snakeyaml.constructor.Constructor
 import org.yaml.snakeyaml.{Loader, Yaml}
+import uk.gov.homeoffice.domain.core.email.EmailRepository
+import uk.gov.homeoffice.domain.core.lock.ProcessLockRepository
 
 import scala.io.BufferedSource
 import scala.io.Source._
@@ -49,9 +49,9 @@ object Main extends Logging {
 
         exposeEndpoints(Config.config.port)
 
-        val emailRepository = new EmailRepository(config.getMongoDBConnector)
+        val emailRepository = new EmailRepository with EmailMongo
         val emailSender = new EmailSender(config.toSmtpConfig)
-        val processLockRepository = new ProcessLockRepository(config.getMongoDBConnector)
+        val processLockRepository = new ProcessLockRepository with EmailMongo
         val emailer = new Emailer(emailRepository, emailSender, EmailAddress(config.sender, config.senderName), Some(EmailAddress(config.replyTo, config.replyToName)), config.pollingFrequency, processLockRepository)
         emailer.start() // blocks this thread
 
@@ -116,8 +116,6 @@ object Endpoints extends Endpoint[HttpRequest, JsonResponse] {
     case Method.Get -> Root / "version" => GetVersion()
   }
 }
-
-case class EmailAddress(email: String, name: String)
 
 object TurnModelIntoJson extends Service[JsonResponse, Json] {
   def apply(model: JsonResponse) = model.toJson.toFuture

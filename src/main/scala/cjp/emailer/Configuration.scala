@@ -1,8 +1,6 @@
 package cjp.emailer
 
 import scala.beans.BeanProperty
-import domain.core.mongo.MongoConnector
-import com.mongodb.casbah.MongoClientURI
 
 class Configuration {
   @BeanProperty var dbHost: String = null
@@ -31,15 +29,10 @@ class Configuration {
                    password = smtpServerPassword)
   }
 
-  def getMongoDBConnector: MongoConnector = {
-    val mongoURL = generateMongoURL()
-    new MongoConnector(mongoURL.getURI + getDbName)
-  }
-
   def generateMongoURL() = {
     if (getDbUser != "")
-      MongoClientURI("mongodb://" + getDbUser + ":" + getDbPassword + "@" + getDbHost + "/")
+      "mongodb://" + getDbUser + ":" + getDbPassword + "@" + getDbHost + "/" + getDbName
     else
-      MongoClientURI("mongodb://" + getDbHost + "/")
+      "mongodb://" + getDbHost + "/" + getDbName
   }
 }

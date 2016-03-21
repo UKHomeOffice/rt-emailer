@@ -8,7 +8,7 @@ object Build extends Build {
   val version_conf = ConfigFactory.parseFile(new File("version.properties")).resolve()
   val conf = ConfigFactory.parseFile(new File("rpm.conf")).resolve()
   val appName = conf.getString("app.name")
-  val appVersion = "1.3.0-SNAPSHOT"
+  val appVersion = "1.4.0"
   val appSummary = conf.getString("app.summary")
   val appDescription = conf.getString("app.description")
 
@@ -18,16 +18,7 @@ object Build extends Build {
     "joda-time" % "joda-time" % "2.5",
     "org.joda" % "joda-convert" % "1.7",
     "org.mongodb" %% "casbah-core" % "2.7.4",
-    "com.github.scopt" %% "scopt" % "3.2.0",
-    "org.yaml" % "snakeyaml" % "1.4",
-    "org.apache.commons" % "commons-email" % "1.3.2",
-    "commons-io" % "commons-io" % "2.4",
-    "com.icegreen" % "greenmail" % "1.3.1b" % "test",
-    "com.github.finagle" %% "finch-core" % "0.3.0",
-    "com.github.finagle" %% "finch-json" % "0.3.0",
-    "org.scalatest" %% "scalatest" % "2.2.4" % "test" withSources(),
-    "uk.gov.homeoffice" %% "rtp-test-lib" % "1.2.0-SNAPSHOT" withSources(),
-    "uk.gov.homeoffice" %% "rtp-test-lib" % "1.2.0-SNAPSHOT" % Test classifier "tests" withSources()
+    "org.yaml" % "snakeyaml" % "1.4"
   )
 
   lazy val emailer = Project(appName, file("."))
@@ -35,7 +26,7 @@ object Build extends Build {
     .settings(
       version := appVersion,
       organization := "uk.gov.homeoffice",
-      scalaVersion := "2.11.7")
+      scalaVersion := "2.11.8")
     .settings(resolvers ++= Seq(
       "Artifactory Snapshot Realm" at "http://artifactory.registered-traveller.homeoffice.gov.uk/artifactory/libs-snapshot-local/",
       "Artifactory Release Realm" at "http://artifactory.registered-traveller.homeoffice.gov.uk/artifactory/libs-release-local/",
@@ -49,16 +40,16 @@ object Build extends Build {
 
   def existsLocallyAndNotOnJenkins(filePath: String) = file(filePath).exists && !file(filePath + "/nextBuildNumber").exists()
 
-  val domainPath = "../../rtp-caseworker-domain-lib"
+  val libPath = "../rtp-email-lib"
 
-  lazy val root = if (existsLocallyAndNotOnJenkins(domainPath)) {
+  lazy val root = if (existsLocallyAndNotOnJenkins(libPath)) {
     println("================")
     println("Build Locally em")
     println("================")
 
-    val domain = ProjectRef(file(domainPath), "rtp-caseworker-domain-lib")
+    val lib = ProjectRef(file(libPath), "rtp-email-lib")
 
-    emailer.dependsOn(domain % "test->test;compile->compile")
+    emailer.dependsOn(lib % "test->test;compile->compile")
   } else {
     println("===================")
     println("Build on Jenkins em")
@@ -66,8 +57,8 @@ object Build extends Build {
 
     emailer.settings(
       libraryDependencies ++= Seq(
-        "uk.gov.homeoffice" %% "rtp-caseworker-domain-lib" % "1.5.0-SNAPSHOT" withSources(),
-        "uk.gov.homeoffice" %% "rtp-caseworker-domain-lib" % "1.5.0-SNAPSHOT" % Test classifier "tests" withSources()
+        "uk.gov.homeoffice" %% "rtp-email-lib" % "1.0.0" withSources(),
+        "uk.gov.homeoffice" %% "rtp-email-lib" % "1.0.0" % Test classifier "tests" withSources()
       )
     )
   }
