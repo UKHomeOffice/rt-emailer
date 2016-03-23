@@ -43,7 +43,10 @@ assemblyExcludedJars in assembly := {
 }
 
 assemblyMergeStrategy in assembly := {
-  case PathList("META-INF", xs @ _*) => MergeStrategy.discard
+  case PathList("META-INF", "MANIFEST.MF") => MergeStrategy.discard
+  case PathList(x @ _*) if x.last endsWith ".SF" => MergeStrategy.discard
+  case PathList(x @ _*) if x.last endsWith ".RSA" => MergeStrategy.discard
+  case PathList(x @ _*) if x.last endsWith ".DSA" => MergeStrategy.discard
   case PathList(ps @ _*) if ps.last endsWith ".java" => MergeStrategy.discard
   case _ => MergeStrategy.first
 }

@@ -57,8 +57,8 @@ object Build extends Build {
 
     emailer.settings(
       libraryDependencies ++= Seq(
-        "uk.gov.homeoffice" %% "rtp-email-lib" % "1.0.2" withSources(),
-        "uk.gov.homeoffice" %% "rtp-email-lib" % "1.0.2" % Test classifier "tests" withSources()
+        "uk.gov.homeoffice" %% "rtp-email-lib" % "1.0.3" withSources(),
+        "uk.gov.homeoffice" %% "rtp-email-lib" % "1.0.3" % Test classifier "tests" withSources()
       )
     )
   }
