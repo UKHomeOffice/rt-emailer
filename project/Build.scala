@@ -8,7 +8,7 @@ object Build extends Build {
   val version_conf = ConfigFactory.parseFile(new File("version.properties")).resolve()
   val conf = ConfigFactory.parseFile(new File("rpm.conf")).resolve()
   val appName = conf.getString("app.name")
-  val appVersion = "1.4.1"
+  val appVersion = "1.4.2"
   val appSummary = conf.getString("app.summary")
   val appDescription = conf.getString("app.description")
 
@@ -57,8 +57,8 @@ object Build extends Build {
 
     emailer.settings(
       libraryDependencies ++= Seq(
-        "uk.gov.homeoffice" %% "rtp-email-lib" % "1.0.0" withSources(),
-        "uk.gov.homeoffice" %% "rtp-email-lib" % "1.0.0" % Test classifier "tests" withSources()
+        "uk.gov.homeoffice" %% "rtp-email-lib" % "1.0.2" withSources(),
+        "uk.gov.homeoffice" %% "rtp-email-lib" % "1.0.2" % Test classifier "tests" withSources()
       )
     )
   }
