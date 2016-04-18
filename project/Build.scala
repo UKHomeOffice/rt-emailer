@@ -5,10 +5,8 @@ import sbt.Keys._
 import sbt._
 
 object Build extends Build {
-  val version_conf = ConfigFactory.parseFile(new File("version.properties")).resolve()
   val conf = ConfigFactory.parseFile(new File("rpm.conf")).resolve()
   val appName = conf.getString("app.name")
-  val appVersion = "1.4.3"
   val appSummary = conf.getString("app.summary")
   val appDescription = conf.getString("app.description")
 
@@ -24,7 +22,6 @@ object Build extends Build {
   lazy val emailer = Project(appName, file("."))
     .enablePlugins(JavaServerAppPackaging)
     .settings(
-      version := appVersion,
       organization := "uk.gov.homeoffice",
       scalaVersion := "2.11.8")
     .settings(resolvers ++= Seq(
