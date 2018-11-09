@@ -15,8 +15,10 @@ object Build extends Build {
     "ch.qos.logback" % "logback-classic" % "1.1.3",
     "joda-time" % "joda-time" % "2.5",
     "org.joda" % "joda-convert" % "1.7",
-    "org.mongodb" %% "casbah-core" % "2.7.4",
-    "org.yaml" % "snakeyaml" % "1.4"
+    "org.mongodb" %% "casbah-core" % "3.1.1",
+    "org.yaml" % "snakeyaml" % "1.4",
+    "com.github.scopt" %% "scopt" % "3.2.0" withSources(),
+    "uk.gov.homeoffice" %% "rtp-email-lib" % "3.2.1-SNAPSHOT" withSources()
   )
 
   lazy val emailer = Project(appName, file("."))
@@ -37,26 +39,26 @@ object Build extends Build {
 
   def existsLocallyAndNotOnJenkins(filePath: String) = file(filePath).exists && !file(filePath + "/nextBuildNumber").exists()
 
-  val libPath = "../rtp-email-lib"
-
-  lazy val root = if (existsLocallyAndNotOnJenkins(libPath)) {
-    println("================")
-    println("Build Locally em")
-    println("================")
-
-    val lib = ProjectRef(file(libPath), "rtp-email-lib")
-
-    emailer.dependsOn(lib % "test->test;compile->compile")
-  } else {
-    println("===================")
-    println("Build on Jenkins em")
-    println("===================")
-
-    emailer.settings(
-      libraryDependencies ++= Seq(
-        "uk.gov.homeoffice" %% "rtp-email-lib" % "1.0.3" withSources(),
-        "uk.gov.homeoffice" %% "rtp-email-lib" % "1.0.3" % Test classifier "tests" withSources()
-      )
-    )
-  }
+//  val libPath = "../rtp-email-lib"
+//
+//  lazy val root = if (existsLocallyAndNotOnJenkins(libPath)) {
+//    println("================")
+//    println("Build Locally em")
+//    println("================")
+//
+//    val lib = ProjectRef(file(libPath), "rtp-email-lib")
+//
+//    emailer.dependsOn(lib % "test->test;compile->compile")
+//  } else {
+//    println("===================")
+//    println("Build on Jenkins em")
+//    println("===================")
+//
+//    emailer.settings(
+//      libraryDependencies ++= Seq(
+//        "uk.gov.homeoffice" %% "rtp-email-lib" % "1.0.3" withSources(),
+//        "uk.gov.homeoffice" %% "rtp-email-lib" % "1.0.3" % Test classifier "tests" withSources()
+//      )
+//    )
+//  }
 }

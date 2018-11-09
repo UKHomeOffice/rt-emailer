@@ -1,16 +1,13 @@
 package cjp.emailer
 
-import java.net.InetSocketAddress
-
 import cjp.emailer.Config._
-import com.twitter.finagle.Service
-import com.twitter.finagle.builder.ServerBuilder
-import com.twitter.finagle.httpx.path._
-import com.twitter.finagle.httpx.{Http, Method}
+import com.twitter.finagle.http.filter.JsonpFilter
+import com.twitter.finagle.http.{Request, Response}
+import com.twitter.finagle.{Http, Service}
+import com.typesafe.config.{Config, ConfigFactory}
+import io.finch.Endpoint
 import grizzled.slf4j.Logging
 import io.finch._
-import io.finch.json._
-import io.finch.json.finch._
 import org.yaml.snakeyaml.constructor.Constructor
 import org.yaml.snakeyaml.{Loader, Yaml}
 import uk.gov.homeoffice.domain.core.email.EmailRepository
@@ -19,17 +16,37 @@ import uk.gov.homeoffice.domain.core.lock.ProcessLockRepository
 import scala.io.BufferedSource
 import scala.io.Source._
 import scala.util.Try
+import io.finch.syntax._
+import io.circe.generic.auto._
+import io.finch.circe._
 
 object Main extends Logging {
   def main(args: Array[String]) = {
-    parser.parse(args, CommandLineArguments()) map { commandLineArguments =>
-      processCommandLine(commandLineArguments)
-    } getOrElse {
-      // arguments are bad, error message will have been displayed
+
+    val isKube = Try(System.getProperty("kube").toBoolean) toOption
+
+    logger.info(s"Value for kube : $isKube")
+
+    isKube match {
+      case Some(a) if a == true =>
+        configFromEnv(ConfigFactory.load())
+
+        logger.info(s"Config ${Config.config}")
+
+        finagleServer(Config.config.port)
+        startEmailer(Config.config)
+
+      case None => //TODO Following implementation needs to be removed once this application is not running in old platform
+        parser.parse(args, CommandLineArguments()) map { commandLineArguments =>
+          processCommandLine(commandLineArguments)
+        } getOrElse {
+          // arguments are bad, error message will have been displayed
+          logger.info(s"Invalid arguments")
+        }
     }
   }
 
-  val parser = new scopt.OptionParser[CommandLineArguments]("iris") {
+  lazy val parser = new scopt.OptionParser[CommandLineArguments]("iris") {
     head("iris", "")
 
     opt[String]('c', "config") required() action { (x, c) =>
@@ -40,34 +57,65 @@ object Main extends Logging {
 
   def processCommandLine(commandLineArguments: CommandLineArguments) {
     logger.info("Config file path = " + commandLineArguments.config)
-    val sourceOption = Try(scala.io.Source.fromFile(commandLineArguments.config)) toOption
+
+
+    val sourceOption: Option[BufferedSource] = Try(scala.io.Source.fromFile(commandLineArguments.config)) toOption
 
     sourceOption match {
       case Some(source) =>
         val config = readFromConfig(source)
         Config.config = config
-
-        exposeEndpoints(Config.config.port)
-
-        val emailRepository = new EmailRepository with EmailMongo
-        val emailSender = new EmailSender(config.toSmtpConfig)
-        val processLockRepository = new ProcessLockRepository with EmailMongo
-        val emailer = new Emailer(emailRepository, emailSender, EmailAddress(config.sender, config.senderName), Some(EmailAddress(config.replyTo, config.replyToName)), config.pollingFrequency, processLockRepository)
-        emailer.start() // blocks this thread
-
-      case None => println("Config file does not exist")
+        finagleServer(Config.config.port)
+        startEmailer(Config.config)
+      case None => logger.info("Config file does not exist")
     }
   }
 
-  def exposeEndpoints(port: Int) = {
-    val endpoint = Endpoints ! TurnModelIntoJson ! TurnJsonIntoHttp[Json]
-    val backend = endpoint orElse Endpoint.NotFound
+  def finagleServer(port: Int) = {
+    Http.server.serve(s":${port}", service)
+  }
 
-    ServerBuilder()
-      .codec(Http())
-      .bindTo(new InetSocketAddress(port))
-      .name("monitoring-and-version")
-      .build(endpoint.toService)
+  def startEmailer(config: Configuration) = {
+    val emailRepository = new EmailRepository with EmailMongo
+    val emailSender = new EmailSender(config.toSmtpConfig)
+    val processLockRepository = new ProcessLockRepository with EmailMongo
+    val emailer = new Emailer(emailRepository, emailSender, EmailAddress(config.sender, config.senderName), Some(EmailAddress(config.replyTo, config.replyToName)), config.pollingFrequency, processLockRepository)
+    emailer.start() // blocks this thread
+  }
+
+   def configFromEnv(con: Config) = {
+     config = new Configuration()
+    config.setDbHost(con.getString("dbHost"))
+    config.setDbName(con.getString("dbName"))
+    config.setDbUser(con.getString("dbUser"))
+    config.setDbPassword(con.getString("dbPassword"))
+    config.setPort(con.getInt("port"))
+    config.setSender(con.getString("sender"))
+    config.setSenderName(con.getString("senderName"))
+    config.setReplyTo(con.getString("replyTo"))
+    config.setReplyToName(con.getString("replyToName"))
+    config.setPollingFrequency(con.getInt("pollingFrequency"))
+
+    config.setSmtpServerHost(con.getString("smtpServerHost"))
+    config.setSmtpServerPort(con.getInt("smtpServerPort"))
+    config.setSmtpServerUsername(con.getString("smtpServerUsername"))
+    config.setSmtpServerPassword(con.getString("smtpServerPassword"))
+  }
+
+  val service: Service[Request, Response] = {
+
+    val ack: Endpoint[Map[String, Boolean]] = get("ack") {
+      Ok(Map("ok" -> true))
+    }
+
+    val version: Endpoint[Map[String, String]] = get("version") {
+      Ok(Map("application" -> "rt-emailer", "version" -> getBuildNumber))
+    }
+
+    val endpoint = ack :+: version
+
+    JsonpFilter.andThen(endpoint.toServiceAs[Application.Json])
+
   }
 
   def readFromConfig(source: BufferedSource) = {
@@ -86,37 +134,4 @@ object Config {
     .mkString.stripLineEnd
     .replaceAll("\"", "")
     .replaceAll("buildNumber=", "")
-}
-
-case class Ack() extends JsonResponse {
-  override def toJson: Json = Json.obj("ok" -> true)
-}
-
-case class GetAck() extends Service[HttpRequest, JsonResponse] {
-  def apply(req: HttpRequest) = {
-    Ack.apply().toFuture
-  }
-}
-
-case class AppVersion() extends JsonResponse {
-  override def toJson: Json = Json.obj("application" -> "rt-emailer", "version" -> getBuildNumber)
-}
-
-case class GetVersion() extends Service[HttpRequest, JsonResponse] {
-  def apply(req: HttpRequest) = AppVersion.apply().toFuture
-}
-
-trait JsonResponse {
-  def toJson: Json
-}
-
-object Endpoints extends Endpoint[HttpRequest, JsonResponse] {
-  def route = {
-    case Method.Get -> Root / "ack" => GetAck()
-    case Method.Get -> Root / "version" => GetVersion()
-  }
-}
-
-object TurnModelIntoJson extends Service[JsonResponse, Json] {
-  def apply(model: JsonResponse) = model.toJson.toFuture
 }

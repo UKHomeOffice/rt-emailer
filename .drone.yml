@@ -1,0 +1,50 @@
+---
+pipeline:
+  drone_s3_cache_pull:
+    image: quay.io/ukhomeofficedigital/drone-s3cache:latest
+    drone_s3_cache_mode: "pull"
+
+  build:
+    commands:
+      - /root/entrypoint.sh
+      - sbt clean coverage test coverageReport coverageOff assembly
+    image: quay.io/ukhomeofficedigital/scala-sbt:v0.3.1
+    environment:
+      - ARTIFACTORY_USERNAME=regt-build-bot
+    secrets:
+      - source: DOCKER_PASSWORD
+        target: ARTIFACTORY_PASSWORD
+    when:
+      event: push
+
+  drone_s3_cache_push:
+    image: quay.io/ukhomeofficedigital/drone-s3cache:latest
+    drone_s3_cache_folders: "rt_emailer"
+    drone_s3_cache_mode: "push"
+
+  build_image:
+    environment:
+      - DOCKER_USERNAME=regt-build-bot
+    image: quay.io/ukhomeofficedigital/drone-docker
+    registry: docker.digital.homeoffice.gov.uk
+    repo: docker.digital.homeoffice.gov.uk/rt/rt-emailer
+    secrets: [ DOCKER_PASSWORD ]
+    tags:
+      - ${DRONE_COMMIT_SHA}
+      - latest
+    when:
+      event: push
+      branch: master
+
+  build_image_tag:
+    environment:
+      - DOCKER_USERNAME=regt-build-bot
+    image: quay.io/ukhomeofficedigital/drone-docker
+    registry: docker.digital.homeoffice.gov.uk
+    repo: docker.digital.homeoffice.gov.uk/rt/rt-emailer
+    secrets: [ DOCKER_PASSWORD ]
+    tags:
+      - ${DRONE_TAG}
+    when:
+      event: tag
+
