@@ -6,9 +6,9 @@ import uk.gov.homeoffice.configuration.HasConfig
 import uk.gov.homeoffice.mongo.casbah.Mongo
 
 trait EmailMongo extends Mongo {
-  lazy val db = EmailMongo.db
+  lazy val mongoDB = EmailMongo.mongoDB
 }
 
 object EmailMongo extends HasConfig {
-  lazy val db = Mongo db MongoClientURI(Config.config.generateMongoURL())
+  lazy val mongoDB =   Mongo.mongoDB(MongoClientURI(Config.config.generateMongoURL()))
 }
