@@ -19,6 +19,7 @@ import scala.util.Try
 import io.finch.syntax._
 import io.circe.generic.auto._
 import io.finch.circe._
+import buildinfo.BuildInfo
 
 object Main extends Logging {
   def main(args: Array[String]) = {
@@ -83,8 +84,8 @@ object Main extends Logging {
     emailer.start() // blocks this thread
   }
 
-   def configFromEnv(con: Config) = {
-     config = new Configuration()
+  def configFromEnv(con: Config) = {
+    config = new Configuration()
     config.setDbHost(con.getString("dbHost"))
     config.setDbName(con.getString("dbName"))
     config.setDbUser(con.getString("dbUser"))
@@ -104,6 +105,14 @@ object Main extends Logging {
 
   val service: Service[Request, Response] = {
 
+    def mongoStatus = {
+      try {
+        if (EmailMongo.mongoDB.collectionExists("email")) "OK" else "KO"
+      } catch {
+        case t: Throwable => "KO"
+      }
+    }
+
     val ack: Endpoint[Map[String, Boolean]] = get("ack") {
       Ok(Map("ok" -> true))
     }
@@ -112,7 +121,12 @@ object Main extends Logging {
       Ok(Map("application" -> "rt-emailer", "version" -> getBuildNumber))
     }
 
-    val endpoint = ack :+: version
+    val status: Endpoint[Map[String, String]] = get("status") {
+      Ok(Map("application" -> "rt-emailer", "version" -> getBuildNumber, "MongoDB" -> mongoStatus))
+    }
+
+
+    val endpoint = ack :+: version :+: status
 
     JsonpFilter.andThen(endpoint.toServiceAs[Application.Json])
 
@@ -130,7 +144,26 @@ object Main extends Logging {
 object Config {
   var config: Configuration = _
 
-  def getBuildNumber = fromInputStream(getClass.getResourceAsStream("/version.conf"))
+  val isKube = Try(System.getProperty("kube").toBoolean).getOrElse(false)
+
+  def getBuildNumber = {
+
+    if (isKube) {
+      getBuildNumberFromGit
+    } else {
+      getBuildNumberFromConf
+    }
+  }
+
+  def getBuildNumberFromGit: String = {
+    import BuildInfo._
+    gitTag match {
+      case a if a.isEmpty => s"${gitHeadCommit.substring(0, 7)}"
+      case _ => gitTag
+    }
+  }
+
+  def getBuildNumberFromConf = fromInputStream(getClass.getResourceAsStream("/version.conf"))
     .mkString.stripLineEnd
     .replaceAll("\"", "")
     .replaceAll("buildNumber=", "")

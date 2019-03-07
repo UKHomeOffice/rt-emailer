@@ -3,6 +3,8 @@ import com.typesafe.sbt.SbtNativePackager._
 import com.typesafe.sbt.packager.archetypes.JavaServerAppPackaging
 import sbt.Keys._
 import sbt._
+import sbtbuildinfo.BuildInfoPlugin
+import BuildInfoGenerator.buildInfoGeneratorSettings
 
 object Build extends Build {
   val conf = ConfigFactory.parseFile(new File("rpm.conf")).resolve()
@@ -22,7 +24,7 @@ object Build extends Build {
   )
 
   lazy val emailer = Project(appName, file("."))
-    .enablePlugins(JavaServerAppPackaging)
+    .enablePlugins(JavaServerAppPackaging,BuildInfoPlugin)
     .settings(
       organization := "uk.gov.homeoffice",
       scalaVersion := "2.11.8")
@@ -35,7 +37,7 @@ object Build extends Build {
     .settings(libraryDependencies ++= dependencies)
     .settings(mappings in Universal ++= (baseDirectory.value / "bin/" ***).filter(_.isFile).get map {
       file: File => file -> ("bin/" + file.getName)
-    })
+    }).settings(buildInfoGeneratorSettings: _*)
 
   def existsLocallyAndNotOnJenkins(filePath: String) = file(filePath).exists && !file(filePath + "/nextBuildNumber").exists()
 
