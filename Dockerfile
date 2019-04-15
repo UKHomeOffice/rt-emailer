@@ -13,6 +13,8 @@ COPY target/scala-2.11/rt-emailer*.jar /app/rt-emailer.jar
 
 ENV JAVA_OPTS="-Xmx2g -Dkube=true"
 
+ENV TZ=Europe/London
+
 EXPOSE 9200
 
 ENTRYPOINT java ${JAVA_OPTS} -jar /app/rt-emailer.jar
