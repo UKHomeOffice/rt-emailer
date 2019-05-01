@@ -79,7 +79,7 @@ object Main extends Logging {
   def generateMongoURL() = {
     val dbUser = config.getString("dbUser")
     if (dbUser != "")
-      "mongodb://" + dbUser + ":" + config.getString("dbPassword") + "@" + config.getString("dbHost") + "/" + config.getString("dbName") + "/authMode=scram-sha1&replicaSet=rs0"
+      "mongodb://" + dbUser + ":" + config.getString("dbPassword") + "@" + config.getString("dbHost") + "/" + config.getString("dbName") + "?authMode=scram-sha1&replicaSet=rs0"
     else
       "mongodb://" + config.getString("dbHost") + "/" + config.getString("dbName")
   }
