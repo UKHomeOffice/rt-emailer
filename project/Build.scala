@@ -16,7 +16,7 @@ object Build extends Build {
     "uk.gov.homeoffice" %% "rtp-email-lib" % "3.2.1-SNAPSHOT" withSources()
   )
 
-  lazy val emailer = Project("RT-Emailer", file("."))
+  lazy val emailer = Project("rt-emailer", file("."))
     .enablePlugins(JavaServerAppPackaging,BuildInfoPlugin)
     .settings(
       organization := "uk.gov.homeoffice",
