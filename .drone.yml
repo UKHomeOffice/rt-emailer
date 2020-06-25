@@ -34,7 +34,7 @@ pipeline:
       - latest
     when:
       event: push
-      branch: master
+#      branch: master
 
   build_image_tag:
     environment:

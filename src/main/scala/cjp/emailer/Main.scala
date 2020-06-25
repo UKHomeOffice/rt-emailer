@@ -7,9 +7,9 @@ import com.twitter.finagle.{Http, Service}
 import com.typesafe.config.ConfigFactory
 import grizzled.slf4j.Logging
 import io.circe.generic.auto._
-import io.finch.{Endpoint, _}
 import io.finch.circe._
 import io.finch.syntax._
+import io.finch.{Endpoint, _}
 import uk.gov.homeoffice.domain.core.email.EmailRepository
 import uk.gov.homeoffice.domain.core.lock.ProcessLockRepository
 
@@ -79,7 +79,7 @@ object Main extends Logging {
   def generateMongoURL() = {
     val dbUser = config.getString("dbUser")
     if (dbUser != "")
-      "mongodb://" + dbUser + ":" + config.getString("dbPassword") + "@" + config.getString("dbHost") + "/" + config.getString("dbName") + "?authMode=scram-sha1&replicaSet=rs0"
+      "mongodb://" + dbUser + ":" + config.getString("dbPassword") + "@" + config.getString("dbHost") + "/" + config.getString("dbName") + "?" + config.getString("dbParams")
     else
       "mongodb://" + config.getString("dbHost") + "/" + config.getString("dbName")
   }
