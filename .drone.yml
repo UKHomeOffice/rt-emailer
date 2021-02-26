@@ -1,50 +1,84 @@
 ---
-pipeline:
-  drone_s3_cache_pull:
-    image: quay.io/ukhomeofficedigital/drone-s3cache:latest
-    drone_s3_cache_mode: "pull"
+kind: pipeline
+type: kubernetes
+name: rt-emailer
 
-  build:
-    commands:
-      - /root/entrypoint.sh
-      - sbt clean coverage test coverageReport coverageOff assembly
-    image: quay.io/ukhomeofficedigital/scala-sbt:v0.3.1
-    environment:
-      - ARTIFACTORY_USERNAME=regt-build-bot
-    secrets:
-      - source: DOCKER_PASSWORD
-        target: ARTIFACTORY_PASSWORD
-    when:
-      event: push
+platform:
+  os: linux
+  arch: amd64
 
-  drone_s3_cache_push:
-    image: quay.io/ukhomeofficedigital/drone-s3cache:latest
-    drone_s3_cache_folders: "rt_emailer"
-    drone_s3_cache_mode: "push"
+steps:
+- name: drone_s3_cache_pull
+  pull: if-not-exists
+  image: quay.io/ukhomeofficedigital/drone-s3cache:latest
+  settings:
+    drone_s3_cache_mode: pull
 
-  build_image:
-    environment:
-      - DOCKER_USERNAME=regt-build-bot
-    image: quay.io/ukhomeofficedigital/drone-docker
-    registry: docker.digital.homeoffice.gov.uk
-    repo: docker.digital.homeoffice.gov.uk/rt/rt-emailer
-    secrets: [ DOCKER_PASSWORD ]
-    tags:
-      - ${DRONE_COMMIT_SHA}
-      - latest
-    when:
-      event: push
-#      branch: master
+- name: build
+  pull: if-not-exists
+  image: quay.io/ukhomeofficedigital/scala-sbt:v0.3.1
+  commands:
+  - /root/entrypoint.sh
+  - sbt clean coverage test coverageReport coverageOff assembly
+  environment:
+    ARTIFACTORY_PASSWORD:
+      from_secret: DOCKER_PASSWORD
+    ARTIFACTORY_USERNAME: regt-build-bot
+  when:
+    event:
+    - push
 
-  build_image_tag:
-    environment:
-      - DOCKER_USERNAME=regt-build-bot
-    image: quay.io/ukhomeofficedigital/drone-docker
-    registry: docker.digital.homeoffice.gov.uk
-    repo: docker.digital.homeoffice.gov.uk/rt/rt-emailer
-    secrets: [ DOCKER_PASSWORD ]
-    tags:
-      - ${DRONE_TAG}
-    when:
-      event: tag
+- name: drone_s3_cache_push
+  pull: if-not-exists
+  image: quay.io/ukhomeofficedigital/drone-s3cache:latest
+  settings:
+    drone_s3_cache_folders: rt_emailer
+    drone_s3_cache_mode: push
 
+
+- name: build_image
+  pull: if-not-exists
+  image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/dind
+  commands:
+    - n=0; while [ "$n" -lt 60 ] && [ ! docker stats --no-stream ]; do n=$(( n + 1 )); sleep 1; done
+    - docker login -u="regt-build-bot" -p=$${DOCKER_PASSWORD} docker.digital.homeoffice.gov.uk
+    - docker build -t $${REGISTRY}/$${NAME}:$${VERSION} .
+  environment:
+    NAME: rt/rt-emailer
+    REGISTRY: docker.digital.homeoffice.gov.uk
+    DOCKER_PASSWORD:
+      from_secret: docker_password
+    VERSION: ${DRONE_COMMIT_SHA}
+  when:
+    event:
+      - push
+  depends_on:
+    - build
+
+- name: image_to_artifactory
+  pull: if-not-exists
+  image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/dind
+  commands:
+    - apk add --update make
+    - docker login -u="regt-build-bot" -p=$${DOCKER_PASSWORD} docker.digital.homeoffice.gov.uk
+    - docker tag $${REGISTRY}/$${NAME}:$${VERSION} $${REGISTRY}/$${NAME}:latest
+    - docker push $${REGISTRY}/$${NAME}:$${VERSION}
+    - docker push $${REGISTRY}/$${NAME}:latest
+  environment:
+    NAME: rt/rt-emailer
+    REGISTRY: docker.digital.homeoffice.gov.uk
+    DOCKER_PASSWORD:
+      from_secret: docker_password
+    VERSION: ${DRONE_COMMIT_SHA}
+  when:
+    event:
+      - push
+      - tag
+  depends_on:
+    - build_image
+
+services:
+  - name: docker
+    image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/dind
+
+...
