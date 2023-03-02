@@ -1,4 +1,4 @@
-FROM openjdk:8-jre
+FROM eclipse-temurin:8-jre
 
 RUN groupadd -r app -g 1000 && \
     useradd -r -g app -u 1000 app -d /app && \
