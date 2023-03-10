@@ -28,7 +28,6 @@ lazy val root = (project in file("."))
       "io.circe"        %% "circe-generic"       % CirceVersion,
       "org.scalameta"   %% "munit"               % MunitVersion           % Test,
       "org.typelevel"   %% "munit-cats-effect-3" % MunitCatsEffectVersion % Test,
-      "org.fusesource.jansi" % "jansi" % "1.18",
       "ch.qos.logback"  %  "logback-classic"     % LogbackVersion         % Runtime,
       "org.scalameta"   %% "svm-subs"            % "20.2.0",
       "uk.gov.homeoffice" %% "rtp-email-lib"     % "3.4.23-g446ba80-U-SNAPSHOT",
@@ -55,3 +54,25 @@ git.gitTagToVersionNumber := { tag :String =>
   }}
 
 buildInfoOptions += BuildInfoOption.BuildTime
+
+assemblyJarName in assembly := "rt-emailer.jar"
+test in assembly := {}
+
+assemblyMergeStrategy in assembly := {
+  case PathList("javax", "activation", _*) => MergeStrategy.first
+  case PathList("javax", "mail", _*) => MergeStrategy.first
+  case PathList("com", "sun", _*) => MergeStrategy.first
+  case "META-INF/io.netty.versions.properties" => MergeStrategy.first
+  case "META-INF/mime.types" => MergeStrategy.first
+  case "META-INF/mailcap.default" => MergeStrategy.first
+  case "META-INF/mimetypes.default" => MergeStrategy.first
+  case "META-INF/gfprobe-provider.xml" => MergeStrategy.first
+  case d if d.endsWith(".jar:module-info.class") => MergeStrategy.first
+  case d if d.endsWith("module-info.class") => MergeStrategy.first
+  case d if d.endsWith("/MatchersBinder.class") => MergeStrategy.discard
+  case d if d.endsWith("/ArgumentsProcessor.class") => MergeStrategy.discard
+  case x =>
+    val oldStrategy = (assemblyMergeStrategy in assembly).value
+    oldStrategy(x)
+}
+

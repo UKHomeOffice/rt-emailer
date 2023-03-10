@@ -57,8 +57,6 @@ object Globals extends StrictLogging {
 
   val mongoDB = Mongo.mongoDB(MongoClientURI(mongoConnectionString))
 
-  println(s"LOOKING AT THIS: " + mongoDB.getCollection("email").count())
-
   var status = AppStatus(
     appName = "rt-emailer",
     version = BuildInfo.version,
