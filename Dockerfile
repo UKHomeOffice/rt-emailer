@@ -1,4 +1,4 @@
-FROM eclipse-temurin:8-jre
+FROM eclipse-temurin:17-jre
 
 RUN groupadd -r app -g 1000 && \
     useradd -r -g app -u 1000 app -d /app && \
@@ -9,12 +9,8 @@ USER 1000
 
 WORKDIR /app
 
-COPY target/scala-2.11/rt-emailer*.jar /app/rt-emailer.jar
+COPY target/scala-2.12/rt-emailer.jar /app/rt-emailer.jar
 
-ENV JAVA_OPTS="-Xmx2g -Dkube=true"
+EXPOSE 8085
 
-ENV TZ=Europe/London
-
-EXPOSE 9200
-
-ENTRYPOINT java ${JAVA_OPTS} -jar /app/rt-emailer.jar
+ENTRYPOINT java $JAVA_OPTS -jar /app/rt-emailer.jar
