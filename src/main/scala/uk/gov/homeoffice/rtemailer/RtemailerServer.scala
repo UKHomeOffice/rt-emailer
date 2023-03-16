@@ -7,7 +7,7 @@ import org.http4s.ember.server.EmberServerBuilder
 import com.typesafe.scalalogging.StrictLogging
 import uk.gov.homeoffice.domain.core.email.EmailRepository
 import uk.gov.homeoffice.domain.core.lock.ProcessLockRepository
-import cjp.emailer.{EmailSender, SmtpConfig, EmailAddress, Emailer}
+import cjp.emailer.Emailer
 import java.net.InetAddress
 
 object RtemailerServer extends StrictLogging {
@@ -36,23 +36,11 @@ object RtemailerServer extends StrictLogging {
   def sendEmails() :IO[Unit] = IO.delay {
     val processLockRepository = new ProcessLockRepository with EmailMongo
     val emailRepository = new EmailRepository with EmailMongo
-    val emailSender = new EmailSender(SmtpConfig(
-      host = Globals.config.getString("smtp.host"),
-      user = Globals.config.getString("smtp.username"),
-      password = Globals.config.getString("smtp.password"),
-      port = Globals.config.getInt("smtp.port")
-    ))
-
-    val emailer = new Emailer(
-      emailRepository,
-      emailSender,
-      EmailAddress(Globals.config.getString("smtp.sender"), Globals.config.getString("smtp.senderName")),
-      Some(EmailAddress(Globals.config.getString("smtp.replyTo"), Globals.config.getString("smtp.replyToName")))
-    )
 
     processLockRepository.obtainLock("rt-emailer", InetAddress.getLocalHost.getHostName) match {
       case Some(lock) =>
         logger.info(s"Lock aquired. Ready to send emails")
+        val emailer = new Emailer(emailRepository, EmailSender.sendMessage)
         val emailResults = emailer.sendEmails()
         processLockRepository.releaseLock(lock)
         emailResults match {
