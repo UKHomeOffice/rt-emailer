@@ -67,8 +67,10 @@ assemblyMergeStrategy in assembly := {
   case "META-INF/io.netty.versions.properties" => MergeStrategy.first
   case "META-INF/mime.types" => MergeStrategy.first
   case "META-INF/mailcap.default" => MergeStrategy.first
+  case "META-INF/mailcap" => MergeStrategy.first
   case "META-INF/mimetypes.default" => MergeStrategy.first
   case "META-INF/gfprobe-provider.xml" => MergeStrategy.first
+  case "META-INF/javamail-providers.xml" => MergeStrategy.first
   case d if d.endsWith(".jar:module-info.class") => MergeStrategy.first
   case d if d.endsWith("module-info.class") => MergeStrategy.first
   case d if d.endsWith("/MatchersBinder.class") => MergeStrategy.discard
@@ -76,5 +78,10 @@ assemblyMergeStrategy in assembly := {
   case x =>
     val oldStrategy = (assemblyMergeStrategy in assembly).value
     oldStrategy(x)
+}
+
+assemblyExcludedJars in assembly := {
+  val cp = (fullClasspath in assembly).value
+  cp filter { f => f.data.getName == "mailapi-1.4.3.jar" || f.data.getName == "gimap-2.0.1.jar" || f.data.getName == "imap-2.0.1.jar" }
 }
 

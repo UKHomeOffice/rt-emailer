@@ -46,7 +46,7 @@ steps:
     environment:
       AWS_REGION: eu-west-2
     commands:
-      - docker build -t 340268328991.dkr.ecr.eu-west-2.amazonaws.com/rtge/rt-emailer:$${DRONE_COMMIT_SHA} . --no-cache
+      - docker build -t 340268328991.dkr.ecr.eu-west-2.amazonaws.com/rtge/rt-emailer:$${DRONE_COMMIT_SHA} .
     volumes:
       - name: dockerclientconfig
         path: /root/.docker
