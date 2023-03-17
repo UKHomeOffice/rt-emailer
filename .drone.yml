@@ -1,4 +1,3 @@
----
 kind: pipeline
 type: kubernetes
 name: rt-emailer
@@ -8,77 +7,81 @@ platform:
   arch: amd64
 
 steps:
-- name: drone_s3_cache_pull
-  pull: if-not-exists
-  image: quay.io/ukhomeofficedigital/drone-s3cache:latest
-  settings:
-    drone_s3_cache_mode: pull
+  - name: ecr-login
+    pull: if-not-exists
+    image: quay.io/ukhomeofficedigital/dind-awscli:19.03.12-dind-1.18.55
+    environment:
+      AWS_ACCESS_KEY_ID:
+        from_secret: aws_access_key_id
+      AWS_SECRET_ACCESS_KEY:
+        from_secret: aws_secret_access_key
+    commands:
+      # wait for docker service to be up before running docker build
+      - n=0; while [ "$n" -lt 60 ] && [ ! docker stats --no-stream ]; do n=$(( n + 1 )); sleep 1; done
+      - aws ecr get-login-password --region eu-west-2 | docker login --username AWS --password-stdin 340268328991.dkr.ecr.eu-west-2.amazonaws.com
+    volumes:
+      - name: dockerclientconfig
+        path: /root/.docker
+    when:
+      event:
+        - push
 
-- name: build
-  pull: if-not-exists
-  image: quay.io/ukhomeofficedigital/scala-sbt:v0.3.1
-  commands:
-  - /root/entrypoint.sh
-  - sbt clean coverage test coverageReport coverageOff assembly
-  environment:
-    ARTIFACTORY_PASSWORD:
-      from_secret: DOCKER_PASSWORD
-    ARTIFACTORY_USERNAME: regt-build-bot
-  when:
-    event:
-    - push
-
-- name: drone_s3_cache_push
-  pull: if-not-exists
-  image: quay.io/ukhomeofficedigital/drone-s3cache:latest
-  settings:
-    drone_s3_cache_folders: rt_emailer
-    drone_s3_cache_mode: push
-
-
-- name: build_image
-  pull: if-not-exists
-  image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/dind
-  commands:
-    - n=0; while [ "$n" -lt 60 ] && [ ! docker stats --no-stream ]; do n=$(( n + 1 )); sleep 1; done
-    - docker login -u="regt-build-bot" -p=$${DOCKER_PASSWORD} docker.digital.homeoffice.gov.uk
-    - docker build -t $${REGISTRY}/$${NAME}:$${VERSION} .
-  environment:
-    NAME: rt/rt-emailer
-    REGISTRY: docker.digital.homeoffice.gov.uk
-    DOCKER_PASSWORD:
-      from_secret: docker_password
-    VERSION: ${DRONE_COMMIT_SHA}
-  when:
-    event:
+  - name: test_and_build
+    pull: if-not-exists
+    image: quay.io/ukhomeofficedigital/scala-sbt:latest
+    commands:
+    - /root/entrypoint.sh
+    - sbt test clean assembly
+    environment:
+      ARTIFACTORY_PASSWORD:
+        from_secret: DOCKER_PASSWORD
+      ARTIFACTORY_USERNAME: regt-build-bot
+    when:
+      event:
       - push
-  depends_on:
-    - build
 
-- name: image_to_artifactory
-  pull: if-not-exists
-  image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/dind
-  commands:
-    - apk add --update make
-    - docker login -u="regt-build-bot" -p=$${DOCKER_PASSWORD} docker.digital.homeoffice.gov.uk
-    - docker tag $${REGISTRY}/$${NAME}:$${VERSION} $${REGISTRY}/$${NAME}:latest
-    - docker push $${REGISTRY}/$${NAME}:$${VERSION}
-    - docker push $${REGISTRY}/$${NAME}:latest
-  environment:
-    NAME: rt/rt-emailer
-    REGISTRY: docker.digital.homeoffice.gov.uk
-    DOCKER_PASSWORD:
-      from_secret: docker_password
-    VERSION: ${DRONE_COMMIT_SHA}
-  when:
-    event:
-      - push
-      - tag
-  depends_on:
-    - build_image
+  - name: build_image
+    pull: if-not-exists
+    image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/dind
+    environment:
+      AWS_REGION: eu-west-2
+    commands:
+      - docker build -t 340268328991.dkr.ecr.eu-west-2.amazonaws.com/rtge/rt-emailer:$${DRONE_COMMIT_SHA} . --no-cache
+    volumes:
+      - name: dockerclientconfig
+        path: /root/.docker
+    depends_on:
+      - test_and_build
+    when:
+      event:
+        - push
+        - tag
+
+  - name: push_build_image
+    image: plugins/ecr
+    settings:
+      registry: 340268328991.dkr.ecr.eu-west-2.amazonaws.com
+      repo: rtge/rt-emailer
+      access_key:
+        from_secret: AWS_ACCESS_KEY_ID
+      secret_key:
+        from_secret: AWS_SECRET_ACCESS_KEY
+      tags:
+        - ${DRONE_COMMIT_SHA}
+        - latest
+    environment:
+      AWS_REGION: eu-west-2
+    when:
+      event:
+        - push
+    depends_on:
+      - build_image
 
 services:
-  - name: docker
-    image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/dind
+- name: docker
+  image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/dind
 
-...
+volumes:
+  - name: dockerclientconfig
+    temp: {}
+
