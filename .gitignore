@@ -1,8 +1,0 @@
-*.iml
-.idea
-target
-.classpath
-.project
-logs/
-.history
-*.DS_Store

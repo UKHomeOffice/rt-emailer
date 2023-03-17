@@ -1,28 +1,16 @@
 <configuration>
-    <conversionRule conversionWord="coloredLevel" converterClass="play.api.Logger$ColoredLevel" />
-
-    <appender name="FILE" class="ch.qos.logback.core.FileAppender">
-        <file>/tmp/rtemailer.log</file>
-        <encoder>
-            <pattern>[RTEMAILER] [%level] %date %logger{15} - %message%n%xException{5}</pattern>
-        </encoder>
-    </appender>
-
-    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
-        <encoder>
-            <pattern>[RTEMAILER] [%level] %date %logger{15} - %message%n%xException{5}</pattern>
-        </encoder>
-    </appender>
-
-    <appender name="SYSLOG" class="ch.qos.logback.classic.net.SyslogAppender">
-        <syslogHost>localhost</syslogHost>
-        <facility>local1</facility>
-        <suffixPattern>[RTEMAILER] [%thread] %logger %msg</suffixPattern>
-    </appender>
-
-    <root level="info">
-        <appender-ref ref="FILE" />
-        <appender-ref ref="STDOUT" />
-        <!--<appender-ref ref="SYSLOG" />-->
-    </root>
+  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <!-- On Windows machines setting withJansi to true enables ANSI
+         color code interpretation by the Jansi library. This requires
+         org.fusesource.jansi:jansi:1.8 on the class path.  Note that
+         Unix-based operating systems such as Linux and Mac OS X
+         support ANSI color codes by default. -->
+    <withJansi>false</withJansi>
+    <encoder>
+      <pattern>[%thread] %highlight(%-5level) %cyan(%logger{15}) - %msg %n</pattern>
+    </encoder>
+  </appender>
+  <root level="INFO">
+    <appender-ref ref="STDOUT" />
+  </root>
 </configuration>
