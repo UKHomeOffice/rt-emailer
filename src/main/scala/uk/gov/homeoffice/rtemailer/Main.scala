@@ -22,6 +22,7 @@ case class AppStatus(
   dbConnectionOk :Boolean,
   emailConnectionOk :Boolean,
   emailsSent :Long,
+  emailsFailedToSend :Long,
   appStartTime :String
 )
 
@@ -61,11 +62,24 @@ object Globals extends StrictLogging {
     appName = "rt-emailer",
     version = BuildInfo.version,
     appEnabled = config.getBoolean("app.enabled"),
-    dbConnectionOk = true,
-    emailConnectionOk = true,
+    dbConnectionOk = false,
+    emailConnectionOk = false,
     emailsSent = 0,
+    emailsFailedToSend = 0,
     appStartTime = ZonedDateTime.now.toString()
   )
+
+  def recordEmailsSent(sent :Int, failedToSend :Int) :Unit =
+    status = status.copy(
+      emailsSent = status.emailsSent + sent,
+      emailsFailedToSend = status.emailsFailedToSend + failedToSend
+    )
+
+  def setDBConnectionOk(isOk: Boolean) :Unit =
+    status = status.copy(dbConnectionOk = isOk)
+
+  def setEmailConnectionOk(isOk: Boolean) :Unit =
+    status = status.copy(emailConnectionOk = isOk)
 
   val emailPollingFrequency :Duration = Duration(Globals.config.getString("app.emailPollingFrequency"))
 

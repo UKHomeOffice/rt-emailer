@@ -2,10 +2,10 @@ package uk.gov.homeoffice.rtemailer
 
 import cats.effect.IO
 import com.comcast.ip4s._
-import scala.concurrent.duration._
 import org.http4s.ember.server.EmberServerBuilder
 import com.typesafe.scalalogging.StrictLogging
 import uk.gov.homeoffice.domain.core.email.EmailRepository
+import uk.gov.homeoffice.domain.core.email.EmailStatus._
 import uk.gov.homeoffice.domain.core.lock.ProcessLockRepository
 import cjp.emailer.Emailer
 import java.net.InetAddress
@@ -33,30 +33,33 @@ object RtemailerServer extends StrictLogging {
       )
   }
 
-  def sendEmails() :IO[Unit] = IO.delay {
-    val processLockRepository = new ProcessLockRepository with EmailMongo
-    val emailRepository = new EmailRepository with EmailMongo
+  def sendEmails() :IO[Unit] = {
 
-    processLockRepository.obtainLock("rt-emailer", InetAddress.getLocalHost.getHostName) match {
+    val processLockRepository = new ProcessLockRepository with EmailMongo
+    IO.blocking(processLockRepository.obtainLock("rt-emailer", InetAddress.getLocalHost.getHostName)).flatMap {
       case Some(lock) =>
         logger.info(s"Lock aquired. Ready to send emails")
+        val emailRepository = new EmailRepository with EmailMongo
         val emailer = new Emailer(emailRepository, EmailSender.sendMessage)
-        val emailResults = emailer.sendEmails()
-        processLockRepository.releaseLock(lock)
-        emailResults match {
-          case Right(emailListWithStatus) =>
-            logger.info(s"Attempted to send ${emailListWithStatus.length} emails")
-            emailListWithStatus.zipWithIndex.foreach { case ((email, newStatus), idx) =>
-              logger.info(s"Email $idx: to=${email.recipient}, subject=${email.subject}, caseRef=${email.caseRef}, newStatus=${newStatus}")
-            }
-            logger.info(s"Finished sending emails. System is configured to sleep for ${Globals.emailPollingFrequency}")
-          case Left(error) =>
-            logger.error(s"Error. System unhealthy. Sleeping for 3 minutes then killing service: $error")
-            IO.sleep(Duration("180 seconds"))
-            sys.exit()
+        Globals.setDBConnectionOk(true)
+        emailer.sendEmails().flatMap { emailResults =>
+          processLockRepository.releaseLock(lock)
+          emailResults match {
+            case Right(emailListWithStatus) =>
+              logger.info(s"Attempted to send ${emailListWithStatus.length} emails")
+              emailListWithStatus.zipWithIndex.foreach { case ((email, newStatus), idx) =>
+                logger.info(s"Email $idx: to=${email.recipient}, subject=${email.subject}, caseRef=${email.caseRef}, newStatus=${newStatus}")
+              }
+              Globals.recordEmailsSent(emailListWithStatus.count(_._2 == Sent), emailListWithStatus.count(_._2 != Sent))
+              IO.delay(logger.info(s"Finished sending emails. System is configured to sleep for ${Globals.emailPollingFrequency}"))
+            case Left(error) =>
+              Globals.setDBConnectionOk(false)
+              IO.delay(logger.error(s"Error. System unhealthy. Sleeping for 3 minutes then killing service: $error"))
+          }
         }
       case None =>
-        logger.info(s"Lock not available. Doing nothing")
+        IO.delay(logger.info(s"Lock not available. Doing nothing"))
     }
   }
+
 }
