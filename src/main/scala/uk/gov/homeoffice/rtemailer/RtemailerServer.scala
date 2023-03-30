@@ -54,7 +54,7 @@ object RtemailerServer extends StrictLogging {
               IO.delay(logger.info(s"Finished sending emails. System is configured to sleep for ${Globals.emailPollingFrequency}"))
             case Left(error) =>
               Globals.setDBConnectionOk(false)
-              IO.delay(logger.error(s"Error. System unhealthy. Sleeping for 3 minutes then killing service: $error"))
+              IO.delay(logger.error(s"Error. System unhealthy: $error"))
           }
         }
       case None =>
