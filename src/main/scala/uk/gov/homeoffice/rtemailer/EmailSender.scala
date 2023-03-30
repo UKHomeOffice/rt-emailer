@@ -43,7 +43,7 @@ object EmailSender extends StrictLogging {
     s"${Globals.config.getString("smtp.protocol")}://${Globals.config.getString("smtp.host")}:${Globals.config.getString("smtp.port")}",
     Globals.config.getString("smtp.username"),
     Globals.config.getString("smtp.password"),
-    SSLType.SSL
+    SSLType.NoEncryption
   )
 
   def sendMessage(email: Email) :IO[EmailSentResult] = {
