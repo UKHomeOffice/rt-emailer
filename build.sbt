@@ -30,12 +30,13 @@ lazy val root = (project in file("."))
       "org.typelevel"   %% "munit-cats-effect-3" % MunitCatsEffectVersion % Test,
       "ch.qos.logback"  %  "logback-classic"     % LogbackVersion         % Runtime,
       "org.scalameta"   %% "svm-subs"            % "20.2.0",
-      "uk.gov.homeoffice" %% "rtp-email-lib"     % "3.4.29-g86b0732",
+      "uk.gov.homeoffice" %% "rtp-email-lib"     % "3.4.29-g86b0732-U-SNAPSHOT",
       "com.typesafe"     % "config"              % "1.4.0",
       "ch.qos.logback"   %  "logback-classic"    % "1.2.3",
       "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2",
       "com.github.eikek" %% "emil-common" % "0.13.0",
-      "com.github.eikek" %% "emil-javamail" % "0.13.0"
+      "com.github.eikek" %% "emil-javamail" % "0.13.0",
+      "uk.gov.service.notify" % "notifications-java-client" % "3.19.1-RELEASE"
     ),
     addCompilerPlugin("org.typelevel" %% "kind-projector"     % "0.13.2" cross CrossVersion.full),
     addCompilerPlugin("com.olegpy"    %% "better-monadic-for" % "0.3.1"),

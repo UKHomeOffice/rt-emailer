@@ -47,18 +47,22 @@ object RtemailerServer extends StrictLogging {
           emailResults match {
             case Right(emailListWithStatus) =>
               logger.info(s"Attempted to send ${emailListWithStatus.length} emails")
-              emailListWithStatus.zipWithIndex.foreach { case ((email, newStatus), idx) =>
-                logger.info(s"Email $idx: to=${email.recipient}, subject=${email.subject}, caseRef=${email.caseRef}, newStatus=${newStatus}")
+              emailListWithStatus.zipWithIndex.foreach {
+                case ((email, Sent(_, _)), idx) =>
+                  logger.info(s"Email $idx: to=${email.recipient}, subject=${email.subject}, caseRef=${email.caseRef}, newStatus=Sent")
+                case ((email, newStatus), idx) =>
+                  logger.info(s"Email $idx: to=${email.recipient}, subject=${email.subject}, caseRef=${email.caseRef}, newStatus=${newStatus}")
               }
-              Globals.recordEmailsSent(emailListWithStatus.count(_._2 == Sent), emailListWithStatus.count(_._2 != Sent))
-              IO.delay(logger.info(s"Finished sending emails. System is configured to sleep for ${Globals.emailPollingFrequency}"))
+              val (emailsSent, emailsNotSent) = emailListWithStatus.map(_._2).partition { case Sent(_, _) => true; case _ => false }
+              Globals.recordEmailsSent(emailsSent.length, emailsNotSent.length)
+              IO.delay(logger.info(s"Finished sending emails"))
             case Left(error) =>
               Globals.setDBConnectionOk(false)
               IO.delay(logger.error(s"Error. System unhealthy: $error"))
           }
         }
       case None =>
-        IO.delay(logger.info(s"Lock not available. Doing nothing"))
+        IO.delay(logger.info(s"Lock not available"))
     }
   }
 
