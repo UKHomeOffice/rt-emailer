@@ -13,14 +13,20 @@ import scala.collection.JavaConverters._
 import org.joda.time.DateTime
 import org.joda.time.format.DateTimeFormat
 import scala.util.Try
-//import com.mongodb.DBObject
-//import org.joda.time.format.DateTimeFormat
 
 /*
  * GovNotify feature.
  *
- * 1. Lookup govNotify.template table to see if email type has an entry.
- * 2. Get MongoDBObject representing the case by looking up the caseRef
+ * 1. Lookup govNotify.template table to see if email type matches the name of a template.
+ * 2. If it does, useGovNotify returns true, otherwise false.
+ *
+ * 3. Get the template from GovNotify
+ * 4. Get the case object from the email.
+ * 5. For an under18, get the case's parent object.
+ * 6. Fetch the personalisations fields from the template
+ * 7. Resolve what the field should be
+ * 8. Generate an HTML template from GovNotify template
+ * 9. Send the email via GovNotify and return the HTML to be stored.
 */
 
 object GovNotifyEmailSender extends StrictLogging {
@@ -46,8 +52,8 @@ object GovNotifyEmailSender extends StrictLogging {
       case d :java.util.Date => new org.joda.time.DateTime(d).toString(dateFormat.getOrElse("YYYY-MM-dd'T'HH:mm:ssZ"))
       case l :List[_] => l.mkString("; ")
       case o :ObjectId => o.toHexString
-      case true => "Yes"
-      case false => "No"
+      case true => "yes"
+      case false => "no"
       case anyStringable => anyStringable.toString()
     }).toOption.flatten
   }
@@ -177,8 +183,7 @@ object GovNotifyEmailSender extends StrictLogging {
   }
 
   def getTemplate(email :Email) :IO[Either[GovNotifyError, Option[Template]]] = {
-    getAllTemplates().map {
-      case Right(allTemplates) =>
+    getAllTemplates().map { _.map { allTemplates =>
         logger.info(s"Templates available from GovNotify: ${allTemplates.map(_.getName()).mkString(",")}")
         allTemplates.find(_.getName() == email.emailType) match {
           case Some(template) =>
@@ -186,8 +191,7 @@ object GovNotifyEmailSender extends StrictLogging {
             Right(Some(template))
           case None => Right(None)
         }
-      case Left(govNotifyError) => Left(govNotifyError) // TODO: Remove
-    }
+    }}
   }
 
   def getPersonalisationsRequired(template :Template) :List[String] = {
