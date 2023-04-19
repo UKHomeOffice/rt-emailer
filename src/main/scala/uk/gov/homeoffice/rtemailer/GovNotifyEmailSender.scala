@@ -29,7 +29,7 @@ import scala.util.Try
  * 9. Send the email via GovNotify and return the HTML to be stored.
 */
 
-class GovNotifyEmailSender extends StrictLogging {
+object GovNotifyEmailSender extends StrictLogging {
 
   lazy val notifyClient = new NotificationClient(Globals.config.getString("govNotify.apiKey"))
   lazy val caseTable :String = Globals.config.getString("govNotify.caseTable")
