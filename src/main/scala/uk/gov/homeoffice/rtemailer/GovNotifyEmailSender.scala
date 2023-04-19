@@ -29,7 +29,7 @@ import scala.util.Try
  * 9. Send the email via GovNotify and return the HTML to be stored.
 */
 
-object GovNotifyEmailSender extends StrictLogging {
+class GovNotifyEmailSender extends StrictLogging {
 
   lazy val notifyClient = new NotificationClient(Globals.config.getString("govNotify.apiKey"))
   lazy val caseTable :String = Globals.config.getString("govNotify.caseTable")
@@ -139,8 +139,8 @@ object GovNotifyEmailSender extends StrictLogging {
 
       val (_ :: fieldName :: functionList) = personalisationRequired.split(":").toList
 
-      val fieldValueStr = optExtract[String](caseObj, fieldName, Some("dd MMMM yyyy")) match {
-        case Some(extractedString) => extractedString
+      val fieldValueStr :String = optExtract[Any](caseObj, fieldName, Some("dd MMMM yyyy")) match {
+        case Some(fieldValue) => fieldValue.toString
         case None =>
           logger.warn(s"gov notify personalisation warning: missing field: $personalisationRequired (templateName: $templateName)")
           ""
@@ -185,11 +185,9 @@ object GovNotifyEmailSender extends StrictLogging {
   def getTemplate(email :Email) :IO[Either[GovNotifyError, Option[Template]]] = {
     getAllTemplates().map { _.map { allTemplates =>
         logger.info(s"Templates available from GovNotify: ${allTemplates.map(_.getName()).mkString(",")}")
-        allTemplates.find(_.getName() == email.emailType) match {
-          case Some(template) =>
+        allTemplates.find(_.getName() == email.emailType).map { template =>
             logger.info(s"Email type linked to GovNotify Template: ${template.getName()}, (templateId=${template.getId()})")
-            Right(Some(template))
-          case None => Right(None)
+            template
         }
     }}
   }
@@ -279,11 +277,11 @@ object TemplateFunctions {
     "title" -> { x => x.take(1).toUpperCase + x.drop(1).toLowerCase },
     "empty" -> { x => if (x.isEmpty) "yes" else "no" },
     "not" -> { x => if (x == "yes") "no" else "yes" },
-    "pounds" -> { t => Try(t.toInt).toOption.map(x => "%2.2f".format((x / 100).toDouble)).getOrElse("") },
+    "pounds" -> { t => Try((BigDecimal(t) / 100).setScale(2).toString).toOption.getOrElse("??.??") },
     "plus6months" -> { x =>
-      val dtf = DateTimeFormat.forPattern("dd MMM yyyy")
+      val dtf = DateTimeFormat.forPattern("dd MMMM yyyy")
       /* warning, can thrown an exception */
-      dtf.parseDateTime(x).plusMonths(6).minusDays(1).toString("dd MMM yyyy")
+      dtf.parseDateTime(x).plusMonths(6).minusDays(1).toString("dd MMMM yyyy")
     },
     "trim" -> { _.trim }
   )
