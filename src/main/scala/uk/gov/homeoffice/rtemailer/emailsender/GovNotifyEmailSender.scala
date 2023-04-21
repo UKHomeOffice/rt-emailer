@@ -33,71 +33,12 @@ import uk.gov.homeoffice.rtemailer.model._
 class GovNotifyEmailSender(implicit appContext :AppContext) extends StrictLogging {
 
   lazy val notifyClientWrapper = new GovNotifyClientWrapper()
-  lazy val caseTable :String = appContext.config.getString("govNotify.caseTable")
+  lazy val mongoWrapper = new GovNotifyMongoWrapper()
 
   // If GovNotify explodes, don't supress and fallback to legacy SMTP solution.
   // Queue emails until a developer investigates
   def useGovNotify(email: Email) :IO[Either[GovNotifyError, Boolean]] = {
     getTemplate(email).map { _.map { _.isDefined }}
-  }
-
-  def optExtract[A](dbObj :MongoDBObject, fieldName :String, dateFormat :Option[String] = None)(implicit m :Manifest[A]) :Option[String] = {
-    import com.mongodb.casbah.Imports._
-
-    scala.util.Try(dbObj.getAs[A](fieldName).map {
-      case d :org.joda.time.DateTime => d.toString(dateFormat.getOrElse("YYYY-MM-dd'T'HH:mm:ssZ"))
-      case d :java.util.Date => new org.joda.time.DateTime(d).toString(dateFormat.getOrElse("YYYY-MM-dd'T'HH:mm:ssZ"))
-      case l :List[_] => l.mkString("; ")
-      case o :ObjectId => o.toHexString
-      case true => "yes"
-      case false => "no"
-      case anyStringable => anyStringable.toString()
-    }).toOption.flatten
-  }
-
-  // extract will return the first non empty field.
-  // extract[String]("x","y","z") will return the y if field x does not exist or x is not of type A. z ignored.
-
-  @tailrec
-  final def extract[A](dbObj :MongoDBObject, fieldName :String*)(implicit m :Manifest[A]) :String = optExtract[A](dbObj, fieldName.head) match {
-    case Some(str) => str
-    case None if fieldName.tail.isEmpty => ""
-    case None => extract[A](dbObj, fieldName.tail :_*)
-  }
-
-  def extractDate(dbObj :MongoDBObject, fieldName :String*) :String = optExtract[java.util.Date](dbObj, fieldName.head) match {
-    case Some(str) => str
-    case None => optExtract[DateTime](dbObj, fieldName.head) match {
-      case Some(str) => str
-      case None if fieldName.tail.isEmpty => ""
-      case None => extractDate(dbObj, fieldName.tail :_*)
-    }
-  }
-
-
-  def caseObjectFromEmail(email :Email) :IO[Either[GovNotifyError, Option[MongoDBObject]]] = {
-    email.caseId match {
-      case Some(caseId) => IO.blocking(Try(
-          appContext.mongoDB(caseTable).findOne(MongoDBObject("_id" -> new ObjectId(caseId)))
-        ).toEither
-          .map(_.map(new MongoDBObject(_)))
-          .left.map(exc => GovNotifyError(s"Database error looking up case from email: ${exc.getMessage()}"))
-        )
-      case None => IO.delay(Right(None))
-    }
-  }
-
-  def parentObjectFromCase(caseObj :MongoDBObject) :IO[Either[GovNotifyError, Option[MongoDBObject]]] = {
-    optExtract[String](caseObj, "latestApplication.parentRegisteredTravellerNumber") match {
-      case Some(parentRT) => IO.blocking(Try(
-          appContext.mongoDB(caseTable).findOne(MongoDBObject("registeredTravellerNumber" -> parentRT))
-        ).toEither
-          .map(_.map(new MongoDBObject(_)))
-          .left.map(exc => GovNotifyError(s"Database error looking up parent case from case: ${exc.getMessage()}"))
-        )
-
-      case None => IO.delay(Right(None))
-    }
   }
 
   // if a config value is not found, we just return empty string, we do not throw an error.
@@ -136,7 +77,7 @@ class GovNotifyEmailSender(implicit appContext :AppContext) extends StrictLoggin
 
       val (_ :: fieldName :: functionList) = personalisationRequired.split(":").toList
 
-      val fieldValueStr :String = optExtract[Any](caseObj, fieldName, Some("dd MMMM yyyy")) match {
+      val fieldValueStr :String = mongoWrapper.optExtract[Any](caseObj, fieldName, Some("dd MMMM yyyy")) match {
         case Some(fieldValue) => fieldValue.toString
         case None =>
           logger.warn(s"gov notify personalisation warning: missing field: $personalisationRequired (templateName: $templateName)")
@@ -145,7 +86,9 @@ class GovNotifyEmailSender(implicit appContext :AppContext) extends StrictLoggin
 
       new TemplateFunctions().applyFunctions(fieldValueStr, functionList) match {
         case Right(resolvedValue) =>
-          //logger.info(s"personalisation required: $personalisationRequired. resolved value: $resolvedValue")
+          if (appContext.config.getBoolean("app.templateDebug")) {
+            logger.info(s"personalisation required: $personalisationRequired. resolved value: $resolvedValue")
+          }
           Right((personalisationRequired, resolvedValue))
         case Left(govNotifyError) =>
           logger.warn(s"gov notify personalisation warning: $personalisationRequired. error: $govNotifyError (templateName: $templateName)")
@@ -161,7 +104,7 @@ class GovNotifyEmailSender(implicit appContext :AppContext) extends StrictLoggin
   }
 
   def buildParentPersonalisations(personalisationsRequired :List[String], caseObj :MongoDBObject, templateName :String) :IO[Either[GovNotifyError, Map[String, String]]] = {
-    parentObjectFromCase(caseObj)
+    mongoWrapper.parentObjectFromCase(caseObj)
       .map {
         case Right(Some(parentCaseObj)) => buildCasePersonalisations(personalisationsRequired, parentCaseObj, templateName, "parent")
         case Right(None) => Right(Map.empty)
@@ -173,7 +116,9 @@ class GovNotifyEmailSender(implicit appContext :AppContext) extends StrictLoggin
 
   def getPersonalisationsRequired(template :Template) :List[String] = {
     val personalisationsRequired = template.getPersonalisation().asScalaOption.map(_.keySet.asScala.toList).getOrElse(List.empty)
-    logger.info(s"Personalisatons Required for ${template.getName()} (${template.getId()}): $personalisationsRequired")
+    if (appContext.config.getBoolean("app.templateDebug")) {
+      logger.info(s"Personalisatons Required for ${template.getName()} (${template.getId()}): $personalisationsRequired")
+    }
     personalisationsRequired
   }
 
@@ -188,7 +133,7 @@ class GovNotifyEmailSender(implicit appContext :AppContext) extends StrictLoggin
     getTemplate(email).flatMap {
       case Right(Some(template)) =>
         val personalisationsRequired = getPersonalisationsRequired(template)
-        caseObjectFromEmail(email).flatMap {
+        mongoWrapper.caseObjectFromEmail(email).flatMap {
           case Right(Some(caseObj)) =>
 
             val allPersonalisations = for {
@@ -204,7 +149,9 @@ class GovNotifyEmailSender(implicit appContext :AppContext) extends StrictLoggin
                 logger.error(s"Cannot send email ${email.emailId} to ${email.recipient} due to error: $err")
                 IO.delay(Waiting)
               case Right(allPersonalisations) =>
-                logger.info(s"Personalisations: ${allPersonalisations.mkString("\n")}")
+                if (appContext.config.getBoolean("app.templateDebug")) {
+                  logger.info(s"Personalisations: ${allPersonalisations.mkString("\n")}")
+                }
                 notifyClientWrapper.generateTemplatePreview(
                   template,
                   allPersonalisations
@@ -289,3 +236,64 @@ class GovNotifyClientWrapper(implicit appContext :AppContext) extends StrictLogg
   }
 }
 
+class GovNotifyMongoWrapper(implicit appContext :AppContext) extends StrictLogging {
+  lazy val caseTable :String = appContext.config.getString("govNotify.caseTable")
+
+  def optExtract[A](dbObj :MongoDBObject, fieldName :String, dateFormat :Option[String] = None)(implicit m :Manifest[A]) :Option[String] = {
+    import com.mongodb.casbah.Imports._
+
+    scala.util.Try(dbObj.getAs[A](fieldName).map {
+      case d :org.joda.time.DateTime => d.toString(dateFormat.getOrElse("YYYY-MM-dd'T'HH:mm:ssZ"))
+      case d :java.util.Date => new org.joda.time.DateTime(d).toString(dateFormat.getOrElse("YYYY-MM-dd'T'HH:mm:ssZ"))
+      case l :List[_] => l.mkString("; ")
+      case o :ObjectId => o.toHexString
+      case true => "yes"
+      case false => "no"
+      case anyStringable => anyStringable.toString()
+    }).toOption.flatten
+  }
+
+  // extract will return the first non empty field.
+  // extract[String]("x","y","z") will return the y if field x does not exist or x is not of type A. z ignored.
+
+  @tailrec
+  final def extract[A](dbObj :MongoDBObject, fieldName :String*)(implicit m :Manifest[A]) :String = optExtract[A](dbObj, fieldName.head) match {
+    case Some(str) => str
+    case None if fieldName.tail.isEmpty => ""
+    case None => extract[A](dbObj, fieldName.tail :_*)
+  }
+
+  def extractDate(dbObj :MongoDBObject, fieldName :String*) :String = optExtract[java.util.Date](dbObj, fieldName.head) match {
+    case Some(str) => str
+    case None => optExtract[DateTime](dbObj, fieldName.head) match {
+      case Some(str) => str
+      case None if fieldName.tail.isEmpty => ""
+      case None => extractDate(dbObj, fieldName.tail :_*)
+    }
+  }
+
+  def caseObjectFromEmail(email :Email) :IO[Either[GovNotifyError, Option[MongoDBObject]]] = {
+    email.caseId match {
+      case Some(caseId) => IO.blocking(Try(
+          appContext.mongoDB(caseTable).findOne(MongoDBObject("_id" -> new ObjectId(caseId)))
+        ).toEither
+          .map(_.map(new MongoDBObject(_)))
+          .left.map(exc => GovNotifyError(s"Database error looking up case from email: ${exc.getMessage()}"))
+        )
+      case None => IO.delay(Right(None))
+    }
+  }
+
+  def parentObjectFromCase(caseObj :MongoDBObject) :IO[Either[GovNotifyError, Option[MongoDBObject]]] = {
+    optExtract[String](caseObj, "latestApplication.parentRegisteredTravellerNumber") match {
+      case Some(parentRT) => IO.blocking(Try(
+          appContext.mongoDB(caseTable).findOne(MongoDBObject("registeredTravellerNumber" -> parentRT))
+        ).toEither
+          .map(_.map(new MongoDBObject(_)))
+          .left.map(exc => GovNotifyError(s"Database error looking up parent case from case: ${exc.getMessage()}"))
+        )
+
+      case None => IO.delay(Right(None))
+    }
+  }
+}

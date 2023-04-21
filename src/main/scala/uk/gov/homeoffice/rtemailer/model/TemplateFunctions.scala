@@ -9,6 +9,11 @@ class TemplateFunctions(implicit appContext: AppContext) {
 
   val dtf = DateTimeFormat.forPattern("dd MMMM yyyy")
 
+  // We advertise to our users that we return blank/empty string if a function or field
+  // does not work. for example gtHello would fail because hello is not an Int.
+  // However please return GovNotifyError instead of an empty string in a failure so
+  // the calling function can attach the template name to a debug message and print it out.
+
   def applyFunction(value :String, function :String) :Either[GovNotifyError, String] = {
 
     val Right = "right(\\d+)".r
