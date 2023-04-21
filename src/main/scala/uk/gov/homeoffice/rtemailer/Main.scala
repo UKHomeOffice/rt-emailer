@@ -6,27 +6,19 @@ import com.typesafe.config.{Config, ConfigFactory}
 import com.typesafe.scalalogging.StrictLogging
 import scala.util.Try
 import scala.io.Source
-import java.time.ZonedDateTime
-import uk.gov.homeoffice.mongo.casbah.Mongo
+import org.joda.time.DateTime
+import org.joda.time.format.DateTimeFormat
 import com.mongodb.casbah.MongoClientURI
 import scala.concurrent.duration._
+import uk.gov.homeoffice.mongo.casbah.Mongo
+import uk.gov.homeoffice.rtemailer.model.{AppStatus, AppContext}
 
-object Main extends IOApp.Simple {
-  var run = RtemailerServer.run 
-}
+object Main extends IOApp.Simple with StrictLogging {
 
-case class AppStatus(
-  appName :String,
-  version :String,
-  appEnabled :Boolean,
-  dbConnectionOk :Boolean,
-  emailConnectionOk :Boolean,
-  emailsSent :Long,
-  emailsFailedToSend :Long,
-  appStartTime :String
-)
-
-object Globals extends StrictLogging {
+  // 1. load config
+  // 2. connect to database
+  // 3. set up a mechanism to track app status
+  // 4. call http4s run
 
   val isJar = Try(Source.fromFile("src/main/resources/logback.xml")).isFailure
 
@@ -58,39 +50,26 @@ object Globals extends StrictLogging {
 
   val mongoDB = Mongo.mongoDB(MongoClientURI(mongoConnectionString))
 
-  var status = AppStatus(
+  // set up a global variable called appStatus that can be manipulated
+  // to show stats on the /status endpoint.
+  val appStatus = AppStatus(
     appName = "rt-emailer",
     version = BuildInfo.version,
-    appEnabled = config.getBoolean("app.enabled"),
-    dbConnectionOk = false,
-    emailConnectionOk = false,
-    emailsSent = 0,
-    emailsFailedToSend = 0,
-    appStartTime = ZonedDateTime.now.toString()
+    appStartTime = DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:mm:ssZ").print(DateTime.now)
   )
+  AppStatus.updateAppStatus(_ => appStatus)
 
-  def recordEmailsSent(sent :Int, failedToSend :Int) :Unit =
-    status = status.copy(
-      emailsSent = status.emailsSent + sent,
-      emailsFailedToSend = status.emailsFailedToSend + failedToSend
-    )
-
-  def setDBConnectionOk(isOk: Boolean) :Unit =
-    status = status.copy(dbConnectionOk = isOk)
-
-  def setEmailConnectionOk(isOk: Boolean) :Unit =
-    status = status.copy(emailConnectionOk = isOk)
-
-  val emailPollingFrequency :Duration = Duration(Globals.config.getString("app.emailPollingFrequency"))
+  val emailPollingFrequency :Duration = Duration(config.getString("app.emailPollingFrequency"))
 
   logger.info(s"rt-emailer application started")
-  logger.info(s"rt-emailer version ${status.version}, started at ${status.appStartTime}. email sending enabled: ${status.appEnabled}. polling frequency: $emailPollingFrequency")
+  logger.info(s"rt-emailer version ${appStatus.version}, started at ${appStatus.appStartTime}. polling frequency: $emailPollingFrequency")
 
-}
+  var appContext = AppContext(
+    DateTime.now,
+    config,
+    mongoDB
+  )
 
-import uk.gov.homeoffice.mongo.casbah.Mongo
-
-trait EmailMongo extends Mongo {
-  lazy val mongoDB = Globals.mongoDB
+  var run = RtemailerServer.run(appContext)
 }
 

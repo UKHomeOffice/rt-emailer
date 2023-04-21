@@ -5,14 +5,15 @@ import cats.effect._
 import uk.gov.homeoffice.domain.core.email.Email
 import uk.gov.homeoffice.domain.core.email.EmailStatus._
 import com.typesafe.scalalogging.StrictLogging
-import uk.gov.service.notify.{Template, NotificationClient}
+import uk.gov.service.notify.{NotificationClient, Template, TemplatePreview, SendEmailResponse}
 import com.mongodb.casbah.commons.MongoDBObject
 import org.bson.types.ObjectId
 import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 import org.joda.time.DateTime
-import org.joda.time.format.DateTimeFormat
 import scala.util.Try
+import Util._
+import uk.gov.homeoffice.rtemailer.model._
 
 /*
  * GovNotify feature.
@@ -29,19 +30,15 @@ import scala.util.Try
  * 9. Send the email via GovNotify and return the HTML to be stored.
 */
 
-object GovNotifyEmailSender extends StrictLogging {
+class GovNotifyEmailSender(implicit appContext :AppContext) extends StrictLogging {
 
-  lazy val notifyClient = new NotificationClient(Globals.config.getString("govNotify.apiKey"))
-  lazy val caseTable :String = Globals.config.getString("govNotify.caseTable")
+  lazy val notifyClientWrapper = new GovNotifyClientWrapper()
+  lazy val caseTable :String = appContext.config.getString("govNotify.caseTable")
 
-  implicit class JavaOptionalOps[A](val underlying :java.util.Optional[A]) extends AnyVal {
-    def asScalaOption() :Option[A] = if (underlying.isEmpty) None else Some(underlying.get())
-  }
-
-  def useGovNotify(email: Email) :Boolean = {
-    val allTemplates :List[Template] = notifyClient.getAllTemplates("email").getTemplates().asScala.toList
-    logger.info(s"Templates available from GovNotify: ${allTemplates.map(_.getName()).mkString(",")}")
-    allTemplates.exists(_.getName() == email.emailType)
+  // If GovNotify explodes, don't supress and fallback to legacy SMTP solution.
+  // Queue emails until a developer investigates
+  def useGovNotify(email: Email) :IO[Either[GovNotifyError, Boolean]] = {
+    getTemplate(email).map { _.map { _.isDefined }}
   }
 
   def optExtract[A](dbObj :MongoDBObject, fieldName :String, dateFormat :Option[String] = None)(implicit m :Manifest[A]) :Option[String] = {
@@ -81,7 +78,7 @@ object GovNotifyEmailSender extends StrictLogging {
   def caseObjectFromEmail(email :Email) :IO[Either[GovNotifyError, Option[MongoDBObject]]] = {
     email.caseId match {
       case Some(caseId) => IO.blocking(Try(
-          Globals.mongoDB(caseTable).findOne(MongoDBObject("_id" -> new ObjectId(caseId)))
+          appContext.mongoDB(caseTable).findOne(MongoDBObject("_id" -> new ObjectId(caseId)))
         ).toEither
           .map(_.map(new MongoDBObject(_)))
           .left.map(exc => GovNotifyError(s"Database error looking up case from email: ${exc.getMessage()}"))
@@ -93,7 +90,7 @@ object GovNotifyEmailSender extends StrictLogging {
   def parentObjectFromCase(caseObj :MongoDBObject) :IO[Either[GovNotifyError, Option[MongoDBObject]]] = {
     optExtract[String](caseObj, "latestApplication.parentRegisteredTravellerNumber") match {
       case Some(parentRT) => IO.blocking(Try(
-          Globals.mongoDB(caseTable).findOne(MongoDBObject("registeredTravellerNumber" -> parentRT))
+          appContext.mongoDB(caseTable).findOne(MongoDBObject("registeredTravellerNumber" -> parentRT))
         ).toEither
           .map(_.map(new MongoDBObject(_)))
           .left.map(exc => GovNotifyError(s"Database error looking up parent case from case: ${exc.getMessage()}"))
@@ -106,8 +103,8 @@ object GovNotifyEmailSender extends StrictLogging {
   // if a config value is not found, we just return empty string, we do not throw an error.
   def buildConfigPersonalisations(personalisationsRequired :List[String], templateName :String) :Either[GovNotifyError, Map[String, String]] = {
     def resolveConfigValue(configName :String) :Either[GovNotifyError, String] = {
-      Globals.config.hasPath(s"govNotify.staticPersonalisations.$configName") match {
-        case true => Try(Globals.config.getString(s"govNotify.staticPersonalisations.$configName"))
+      appContext.config.hasPath(s"govNotify.staticPersonalisations.$configName") match {
+        case true => Try(appContext.config.getString(s"govNotify.staticPersonalisations.$configName"))
             .toEither
             .left.map(exc => GovNotifyError(s"Config error govNotify.staticPersonalisations.$configName: ${exc.getMessage}"))
         case false =>
@@ -121,7 +118,7 @@ object GovNotifyEmailSender extends StrictLogging {
       .map { personalisationRequired =>
         val (_ :: configName :: _) = personalisationRequired.split(":").toList
         resolveConfigValue(configName) match {
-          case Right(value) => Right((configName, value))
+          case Right(value) => Right((personalisationRequired, value))
           case Left(govNotifyError) => Left(govNotifyError.copy(personalisationField = Some(configName)))
         }
     }
@@ -146,7 +143,7 @@ object GovNotifyEmailSender extends StrictLogging {
           ""
       }
 
-      TemplateFunctions.applyFunctions(fieldValueStr, functionList) match {
+      new TemplateFunctions().applyFunctions(fieldValueStr, functionList) match {
         case Right(resolvedValue) =>
           //logger.info(s"personalisation required: $personalisationRequired. resolved value: $resolvedValue")
           Right((personalisationRequired, resolvedValue))
@@ -174,28 +171,16 @@ object GovNotifyEmailSender extends StrictLogging {
       }
   }
 
-  def getAllTemplates() :IO[Either[GovNotifyError, List[Template]]] = {
-    IO.blocking(
-      Try(notifyClient.getAllTemplates("email").getTemplates().asScala.toList)
-        .toEither
-        .left.map(exc => GovNotifyError(s"Error fetching all templates from gov notify: ${exc.getMessage}"))
-    )
-  }
-
-  def getTemplate(email :Email) :IO[Either[GovNotifyError, Option[Template]]] = {
-    getAllTemplates().map { _.map { allTemplates =>
-        logger.info(s"Templates available from GovNotify: ${allTemplates.map(_.getName()).mkString(",")}")
-        allTemplates.find(_.getName() == email.emailType).map { template =>
-            logger.info(s"Email type linked to GovNotify Template: ${template.getName()}, (templateId=${template.getId()})")
-            template
-        }
-    }}
-  }
-
   def getPersonalisationsRequired(template :Template) :List[String] = {
     val personalisationsRequired = template.getPersonalisation().asScalaOption.map(_.keySet.asScala.toList).getOrElse(List.empty)
     logger.info(s"Personalisatons Required for ${template.getName()} (${template.getId()}): $personalisationsRequired")
     personalisationsRequired
+  }
+
+  def getTemplate(email :Email) :IO[Either[GovNotifyError, Option[Template]]] = {
+    notifyClientWrapper.getAllTemplates().map { _.map { allTemplates =>
+      allTemplates.find(_.getName() == email.emailType)
+    }}
   }
 
   def sendMessage(email: Email) :IO[EmailSentResult] = {
@@ -211,39 +196,35 @@ object GovNotifyEmailSender extends StrictLogging {
               parentPersonalisations <- EitherT(buildParentPersonalisations(personalisationsRequired, caseObj, template.getName()))
               configPersonalisations <- EitherT(IO.delay(buildConfigPersonalisations(personalisationsRequired, template.getName())))
             } yield {
-
-              val scalaMap = casePersonalisations ++ parentPersonalisations ++ configPersonalisations
-              val javaMap = new java.util.HashMap[String, Object]()
-              scalaMap.foreach { case (k, v) => javaMap.put(k, v) }
-              javaMap
+              casePersonalisations ++ parentPersonalisations ++ configPersonalisations
             }
 
             allPersonalisations.value.flatMap {
               case Left(err) =>
                 logger.error(s"Cannot send email ${email.emailId} to ${email.recipient} due to error: $err")
                 IO.delay(Waiting)
-              case Right(javaMap) =>
-                IO.blocking(Try(notifyClient.generateTemplatePreview(
-                  template.getId().toString(),
-                  javaMap
-                )).toEither).flatMap {
+              case Right(allPersonalisations) =>
+                logger.info(s"Personalisations: ${allPersonalisations.mkString("\n")}")
+                notifyClientWrapper.generateTemplatePreview(
+                  template,
+                  allPersonalisations
+                ).flatMap {
                   case Right(templatePreview) =>
-                    IO.blocking(Try(notifyClient.sendEmail(
-                      template.getId().toString(),
-                      email.recipient,
-                      javaMap,
-                      email.emailId,
-                    )).toEither).map {
+                    notifyClientWrapper.sendEmail(
+                      email,
+                      template,
+                      allPersonalisations
+                    ).map {
                         case Right(response) =>
                           val govNotifyRef = response.getReference().asScalaOption.getOrElse("")
                           logger.info(s"Email sent via Gov Notify. Notification Id: ${response.getNotificationId()}, gov notify reference: ${govNotifyRef}, email table id: ${email.emailId}, template: ${response.getTemplateId()}, template version: ${response.getTemplateVersion()}")
                           Sent(newText = Some(templatePreview.getBody()), newHtml = templatePreview.getHtml().asScalaOption)
-                        case Left(sendExc) =>
-                          logger.error(s"Cannot send email ${email.emailId} to ${email.recipient} via GovNotify. Error during send: ${sendExc.getMessage()}")
+                        case Left(govNotifySendError) =>
+                          logger.error(s"Cannot send email ${email.emailId} to ${email.recipient} via GovNotify. Error during send: $govNotifySendError")
                           Waiting
                     }
-                  case Left(templateExc) =>
-                    logger.error(s"Cannot send email ${email.emailId} to ${email.recipient} via GovNotify. Error generating template preview: ${templateExc.getMessage()}")
+                  case Left(govNotifyTemplateError) =>
+                    logger.error(s"Cannot send email ${email.emailId} to ${email.recipient} via GovNotify. Error generating template preview: $govNotifyTemplateError")
                     IO.delay(Waiting)
                 }
             }
@@ -264,39 +245,47 @@ object GovNotifyEmailSender extends StrictLogging {
   }
 }
 
-case class GovNotifyError(message :String, transient: Boolean = true, personalisationField :Option[String] = None)
+class GovNotifyClientWrapper(implicit appContext :AppContext) extends StrictLogging {
 
-object TemplateFunctions {
+  lazy val notifyClient = new NotificationClient(appContext.config.getString("govNotify.apiKey"))
 
-  type TemplateFunction = String => String
-  val functions = Map[String, TemplateFunction](
-    "right4" -> { _.takeRight(4) },
-    "bool" -> { x => if (x == "true") "yes" else "no" },
-    "lower" -> { _.toLowerCase },
-    "upper" -> { _.toUpperCase },
-    "title" -> { x => x.take(1).toUpperCase + x.drop(1).toLowerCase },
-    "empty" -> { x => if (x.isEmpty) "yes" else "no" },
-    "not" -> { x => if (x == "yes") "no" else "yes" },
-    "pounds" -> { t => Try((BigDecimal(t) / 100).setScale(2).toString).toOption.getOrElse("??.??") },
-    "plus6months" -> { x =>
-      val dtf = DateTimeFormat.forPattern("dd MMMM yyyy")
-      /* warning, can thrown an exception */
-      dtf.parseDateTime(x).plusMonths(6).minusDays(1).toString("dd MMMM yyyy")
-    },
-    "trim" -> { _.trim }
-  )
+  def toJavaMap(scalaMap :Map[String, String]) :java.util.HashMap[String, Object] = {
+    val javaMap = new java.util.HashMap[String, Object]()
+    scalaMap.foreach { case (k, v) => javaMap.put(k, v) }
+    javaMap
+  }
 
-  @tailrec
-  def applyFunctions(input :String, functionList :List[String]) :Either[GovNotifyError, String] = functionList match {
-    case Nil => Right(input)
-    case head :: more => functions.get(head) match {
-      case Some(func) =>
-        Try(func(input)).toEither match {
-          case Left(exc) => Left(GovNotifyError(s"template function error ($head on $input): ${exc.getMessage}"))
-          case Right(modValue) => applyFunctions(modValue, more)
-        }
-      case None => Left(GovNotifyError(s"Bad function name: $head"))
-    }
+  def getAllTemplates() :IO[Either[GovNotifyError, List[Template]]] = {
+    IO.blocking(Try(notifyClient.getAllTemplates("email").getTemplates().asScala.toList)
+      .toEither
+      .map { templates =>
+        val templateNames = templates.map(_.getName()).mkString(",")
+        logger.info(s"Templates returned from gov notify: $templateNames")
+        templates
+      }
+      .left.map(exc => GovNotifyError(s"Error calling GovNotify.getAllTemplates: ${exc.getMessage}"))
+    )
+  }
+
+  def generateTemplatePreview(template :Template, personalisations :Map[String, String]) :IO[Either[GovNotifyError, TemplatePreview]] = {
+    IO.blocking(Try(notifyClient.generateTemplatePreview(
+      template.getId().toString(),
+      toJavaMap(personalisations),
+    )).toEither
+      .left.map(exc => GovNotifyError(s"Error calling GovNotify.generateTemplatePreview: ${exc.getMessage}"))
+    )
+  }
+
+  def sendEmail(email :Email, template :Template, allPersonalisations :Map[String, String]) :IO[Either[GovNotifyError, SendEmailResponse]] = {
+    IO.blocking(Try(notifyClient.sendEmail(
+      template.getId().toString(),
+      email.recipient,
+      toJavaMap(allPersonalisations),
+      email.emailId,
+    ))
+      .toEither
+      .left.map(exc => GovNotifyError(s"Error calling GovNotify.sendEmail: ${exc.getMessage}"))
+    )
   }
 }
 

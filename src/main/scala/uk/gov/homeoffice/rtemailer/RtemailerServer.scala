@@ -9,21 +9,25 @@ import uk.gov.homeoffice.domain.core.email.EmailStatus._
 import uk.gov.homeoffice.domain.core.lock.ProcessLockRepository
 import cjp.emailer.Emailer
 import java.net.InetAddress
+import scala.concurrent.duration.Duration
+import uk.gov.homeoffice.rtemailer.model.{AppContext, EmailMongo}
 
 object RtemailerServer extends StrictLogging {
 
-  def run :IO[Unit] = {
+  def run(implicit appContext :AppContext) :IO[Unit] = {
     val httpApp = (RtemailerRoutes.allRoutes[IO]()).orNotFound
+
+    val emailPollingFrequency :Duration = Duration(appContext.config.getString("app.emailPollingFrequency"))
 
     lazy val emailerLoop: IO[Unit] = {
       sendEmails >>
-      IO.sleep(Globals.emailPollingFrequency) >>
+      IO.sleep(emailPollingFrequency) >>
       emailerLoop
     }
 
     EmberServerBuilder.default[IO]
       .withHost(ipv4"0.0.0.0")
-      .withPort(Port.fromInt(Globals.config.getInt("app.webPort")).get)
+      .withPort(Port.fromInt(appContext.config.getInt("app.webPort")).get)
       .withHttpApp(httpApp)
       .build
       .use(server =>
@@ -33,15 +37,16 @@ object RtemailerServer extends StrictLogging {
       )
   }
 
-  def sendEmails() :IO[Unit] = {
+  def sendEmails()(implicit appContext :AppContext) :IO[Unit] = {
 
     val processLockRepository = new ProcessLockRepository with EmailMongo
     IO.blocking(processLockRepository.obtainLock("rt-emailer", InetAddress.getLocalHost.getHostName)).flatMap {
       case Some(lock) =>
         logger.info(s"Lock aquired. Ready to send emails")
         val emailRepository = new EmailRepository with EmailMongo
-        val emailer = new Emailer(emailRepository, EmailSender.sendMessage)
-        Globals.setDBConnectionOk(true)
+        val emailSender = new EmailSender
+        val emailer = new Emailer(emailRepository, emailSender.sendMessage)
+        appContext.updateAppStatus(_.markDatabaseOk)
         emailer.sendEmails().flatMap { emailResults =>
           processLockRepository.releaseLock(lock)
           emailResults match {
@@ -54,14 +59,16 @@ object RtemailerServer extends StrictLogging {
                   logger.info(s"Email $idx: to=${email.recipient}, subject=${email.subject}, caseRef=${email.caseRef}, newStatus=${newStatus}")
               }
               val (emailsSent, emailsNotSent) = emailListWithStatus.map(_._2).partition { case Sent(_, _) => true; case _ => false }
-              Globals.recordEmailsSent(emailsSent.length, emailsNotSent.length)
+              appContext.updateAppStatus(_.recordEmailsSent(emailsSent.length, emailsNotSent.length))
               IO.delay(logger.info(s"Finished sending emails"))
             case Left(error) =>
-              Globals.setDBConnectionOk(false)
+              appContext.updateAppStatus(_.recordDatabaseError(error))
               IO.delay(logger.error(s"Error. System unhealthy: $error"))
           }
         }
       case None =>
+        /* This isn't an error but it may be useful to shout loudly about why things are working */
+        appContext.updateAppStatus(_.recordDatabaseError("lock not available"))
         IO.delay(logger.info(s"Lock not available"))
     }
   }
