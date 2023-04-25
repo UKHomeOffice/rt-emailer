@@ -55,9 +55,9 @@ object RtemailerServer extends StrictLogging {
               logger.info(s"Attempted to send ${emailListWithStatus.length} emails")
               emailListWithStatus.zipWithIndex.foreach {
                 case ((email, Sent(_, _)), idx) =>
-                  logger.info(s"Email $idx: to=${email.recipient}, subject=${email.subject}, caseRef=${email.caseRef}, newStatus=Sent")
+                  logger.info(s"Email $idx: to=${email.recipient}, subject=${email.subject}, caseId=${email.caseId.getOrElse("")}, newStatus=Sent")
                 case ((email, newStatus), idx) =>
-                  logger.info(s"Email $idx: to=${email.recipient}, subject=${email.subject}, caseRef=${email.caseRef}, newStatus=${newStatus}")
+                  logger.info(s"Email $idx: to=${email.recipient}, subject=${email.subject}, caseId=${email.caseId.getOrElse("")}, newStatus=${newStatus}")
               }
               val (emailsSent, emailsNotSent) = emailListWithStatus.map(_._2).partition { case Sent(_, _) => true; case _ => false }
               appContext.updateAppStatus(_.recordEmailsSent(emailsSent.length, emailsNotSent.length))

@@ -314,6 +314,23 @@ parent:details.age:minusN18:gt10=yes"""))
 
   }
 
-  // add another test where something causes sendMessage to just return Waiting again?
+  test("ensure a failing end-to-end scenario returns WAITING status so app will try again later") {
+
+    val helloTypeEmail = new Email(
+      "id1",
+      Some(""),
+      None,
+      testAppContext.nowF(),
+      "fail@example.com",     /* this clause triggers our mock emailsender to return an error. */
+      "",
+      "",
+      "",
+      "WAITING",
+      emailType = "HelloEmail",
+      Nil
+    )
+
+    assertEquals(govNotifyEmailSender.sendMessage(helloTypeEmail).unsafeRunSync(), Waiting)
+  }
 }
 
