@@ -1,4 +1,4 @@
-package uk.gov.homeoffice.rtemailer
+package uk.gov.homeoffice.rtemailer.emailsender
 
 import cats.effect._
 import uk.gov.homeoffice.domain.core.email.Email

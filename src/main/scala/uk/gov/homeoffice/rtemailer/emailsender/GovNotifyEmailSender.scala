@@ -1,4 +1,4 @@
-package uk.gov.homeoffice.rtemailer
+package uk.gov.homeoffice.rtemailer.emailsender
 
 import cats.data.EitherT
 import cats.effect._
@@ -12,7 +12,6 @@ import scala.annotation.tailrec
 import scala.collection.JavaConverters._
 import org.joda.time.DateTime
 import scala.util.Try
-import Util._
 import uk.gov.homeoffice.rtemailer.model._
 
 /*
@@ -31,6 +30,7 @@ import uk.gov.homeoffice.rtemailer.model._
 */
 
 class GovNotifyEmailSender(implicit appContext :AppContext) extends StrictLogging {
+  import uk.gov.homeoffice.rtemailer.Util._
 
   lazy val notifyClientWrapper = new GovNotifyClientWrapper()
   lazy val mongoWrapper = new GovNotifyMongoWrapper()

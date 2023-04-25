@@ -10,6 +10,7 @@ import uk.gov.homeoffice.domain.core.lock.ProcessLockRepository
 import cjp.emailer.Emailer
 import java.net.InetAddress
 import scala.concurrent.duration.Duration
+import uk.gov.homeoffice.rtemailer.emailsender._
 import uk.gov.homeoffice.rtemailer.model.{AppContext, EmailMongo}
 
 object RtemailerServer extends StrictLogging {

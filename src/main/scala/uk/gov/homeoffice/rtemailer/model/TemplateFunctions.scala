@@ -17,8 +17,8 @@ class TemplateFunctions(implicit appContext: AppContext) {
   def applyFunction(value :String, function :String) :Either[GovNotifyError, String] = {
 
     val Right = "right(\\d+)".r
-    val Minus = "minus(Days|Weeks|Months|Years)(\\d+)".r
-    val Plus = "plus(Days|Weeks|Months|Years)(\\d+)".r
+    val Minus = "minus(Days|Weeks|Months|Years|N)(\\d+)".r
+    val Plus = "plus(Days|Weeks|Months|Years|N)(\\d+)".r
     val GreaterThan = "gt(\\d+)".r
     val Contains = "contains(.*)".r
 
@@ -38,6 +38,8 @@ class TemplateFunctions(implicit appContext: AppContext) {
       case "beforeNow" => if (valueAsDate().isBefore(appContext.nowF())) "yes" else "no"
       case GreaterThan(gtInt) => if (value.toInt > gtInt.toInt) "yes" else "no"
       case Contains(inStr) => if (value.contains(inStr)) "yes" else "no"
+      case Minus("N", int) => (value.toInt - int.toInt).toString
+      case Plus("N", int) => (value.toInt + int.toInt).toString
       case "bool" => if (value == "true") "yes" else "no"
       case "lower" => value.toLowerCase
       case "upper" => value.toUpperCase

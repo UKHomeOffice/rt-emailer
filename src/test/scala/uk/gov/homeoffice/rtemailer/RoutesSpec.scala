@@ -6,6 +6,7 @@ import org.http4s.implicits._
 import munit.CatsEffectSuite
 import org.http4s._
 import io.circe.parser._
+import uk.gov.homeoffice.rtemailer.model.AppStatus
 
 class RoutesSpec extends CatsEffectSuite {
 
@@ -13,6 +14,9 @@ class RoutesSpec extends CatsEffectSuite {
   val req = Request[IO](Method.GET, uri"/status")
 
   test("/status endpoint returns json with health information") {
+
+    AppStatus.updateAppStatus(_.copy(appName = "rt-emailer"))
+
     routes.run(req).value.unsafeRunSync() match {
       case Some(response) =>
         val responseText = new String(response.body.compile.toVector.unsafeRunSync().toArray, "UTF-8")
@@ -22,8 +26,8 @@ class RoutesSpec extends CatsEffectSuite {
             obj.hcursor.downField("appName").as[String] match {
               case Left(_) => fail(s"Unable to appName in /status")
               case Right(appName) =>
-                println(s"got app name: $appName")
-                assert(appName == "rt-emailer")
+                assertEquals(appName, "rt-emailer")
+                
             }
         }
         assert(response.status.code == 200)
