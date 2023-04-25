@@ -218,8 +218,14 @@ class GovNotifyClientWrapper(implicit appContext :AppContext) extends StrictLogg
     IO.blocking(Try(notifyClient.generateTemplatePreview(
       template.getId().toString(),
       toJavaMap(personalisations),
-    )).toEither
-      .left.map(exc => GovNotifyError(s"Error calling GovNotify.generateTemplatePreview: ${exc.getMessage}"))
+    )).toEither match {
+      case Left(exc) =>
+        appContext.updateAppStatus(_.recordGovNotifyError(s"Error calling GovNotify.generateTemplatePreview: ${exc.getMessage}"))
+        Left(GovNotifyError(s"Error calling GovNotify.generateTemplatePreview: ${exc.getMessage}"))
+      case Right(templatePreview) =>
+        appContext.updateAppStatus(_.markGovNotifyOk)
+        Right(templatePreview)
+      }
     )
   }
 
@@ -230,8 +236,14 @@ class GovNotifyClientWrapper(implicit appContext :AppContext) extends StrictLogg
       toJavaMap(allPersonalisations),
       email.emailId,
     ))
-      .toEither
-      .left.map(exc => GovNotifyError(s"Error calling GovNotify.sendEmail: ${exc.getMessage}"))
+      .toEither match {
+        case Left(exc) =>
+          appContext.updateAppStatus(_.recordGovNotifyError(s"Error calling GovNotify.sendEmail: ${exc.getMessage}"))
+          Left(GovNotifyError(s"Error calling GovNotify.sendEmail: ${exc.getMessage}"))
+        case Right(sendEmailResponse) =>
+          appContext.updateAppStatus(_.markGovNotifyOk)
+          Right(sendEmailResponse)
+      }
     )
   }
 }
@@ -276,9 +288,14 @@ class GovNotifyMongoWrapper(implicit appContext :AppContext) extends StrictLoggi
     email.caseId match {
       case Some(caseId) => IO.blocking(Try(
           appContext.mongoDB(caseTable).findOne(MongoDBObject("_id" -> new ObjectId(caseId)))
-        ).toEither
-          .map(_.map(new MongoDBObject(_)))
-          .left.map(exc => GovNotifyError(s"Database error looking up case from email: ${exc.getMessage()}"))
+        ).toEither match {
+          case Left(exc) =>
+            appContext.updateAppStatus(_.recordDatabaseError(exc.getMessage))
+            Left(GovNotifyError(s"Database error looking up case from email: ${exc.getMessage()}"))
+          case Right(maybeObj) =>
+            appContext.updateAppStatus(_.markDatabaseOk)
+            Right(maybeObj.map(new MongoDBObject(_)))
+          }
         )
       case None => IO.delay(Right(None))
     }

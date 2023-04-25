@@ -58,6 +58,14 @@ case class AppStatus(
     this.copy(smtpRelayLastError = Some((appContext.nowF(), message)))
   }
 
+  def markGovNotifyOk()(implicit appContext :AppContext) :AppStatus = {
+    this.copy(govNotifyLastSuccess = Some(appContext.nowF()))
+  }
+
+  def recordGovNotifyError(message :String)(implicit appContext :AppContext) :AppStatus = {
+    this.copy(govNotifyLastError = Some((appContext.nowF(), message)))
+  }
+
   def recordEmailsSent(success :Int, failed :Int)(implicit appContext :AppContext) :AppStatus = {
     val updCounts = this.copy(
       emailsSentCount = emailsSentCount + success,
@@ -70,7 +78,7 @@ case class AppStatus(
   }
 
   def flatten() :Map[String, String] = {
-    val dtf = DateTimeFormat.forPattern("dd MMMM yyyy")
+    val dtf = DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:mm:ss")
     Map(
       "appName" -> appName,
       "version" -> version,
