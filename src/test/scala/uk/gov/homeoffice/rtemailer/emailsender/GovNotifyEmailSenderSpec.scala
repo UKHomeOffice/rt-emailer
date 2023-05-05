@@ -5,11 +5,13 @@ import cats.effect._
 import org.joda.time.DateTime
 import com.typesafe.config.ConfigFactory
 import uk.gov.homeoffice.rtemailer.model.AppContext
+import org.bson.types.ObjectId
 
 import com.mongodb.casbah.commons.MongoDBObject
 import uk.gov.homeoffice.domain.core.email.Email
 import uk.gov.homeoffice.domain.core.email.EmailStatus._
 import uk.gov.homeoffice.rtemailer.model._
+import uk.gov.homeoffice.rtemailer.govnotify._
 import uk.gov.service.notify.{Template, TemplatePreview, SendEmailResponse}
 
 class govNotifyEmailSenderSpec extends CatsEffectSuite {
@@ -159,8 +161,8 @@ class govNotifyEmailSenderSpec extends CatsEffectSuite {
 
   test("Use Gov Notify if email type matches the name of a template") {
 
-    val testEmail = new Email("id1", None, None, testAppContext.nowF(), "test@example.com", "", "", "", "WAITING", emailType = "HelloEmail", Nil)
-    val unknownType = new Email("id1", None, None, testAppContext.nowF(), "test@example.com", "", "", "", "WAITING", emailType = "UnknownType", Nil)
+    val testEmail = new Email(new ObjectId().toHexString, None, None, testAppContext.nowF(), "test@example.com", "", "", "", "WAITING", emailType = "HelloEmail", Nil)
+    val unknownType = new Email(new ObjectId().toHexString, None, None, testAppContext.nowF(), "test@example.com", "", "", "", "WAITING", emailType = "UnknownType", Nil)
 
     assertEquals(govNotifyEmailSender.useGovNotify(testEmail).unsafeRunSync(), Right(true))
     assertEquals(govNotifyEmailSender.useGovNotify(unknownType).unsafeRunSync(), Right(false))
@@ -254,10 +256,10 @@ class govNotifyEmailSenderSpec extends CatsEffectSuite {
       "time" -> DateTime.parse("2020-03-01T12:33:44Z")
     ))
 
-    val testPersonalisations = List("case:time")
+    val testPersonalisations = List("case:time:date")
 
     val result = govNotifyEmailSender.buildCasePersonalisations(testPersonalisations, testCase, "test-template-empty")
-    assertEquals(result, Right(Map("case:time" -> "01 March 2020")))
+    assertEquals(result, Right(Map("case:time:date" -> "01 March 2020")))
   }
 
   test("when the field is a boolean it is formatted as yes/no") {
@@ -282,8 +284,8 @@ class govNotifyEmailSenderSpec extends CatsEffectSuite {
   test("full good end-to-end scenario") {
 
     val helloTypeEmail = new Email(
-      "id1",
-      Some(""),
+      new ObjectId().toHexString(),
+      Some(new ObjectId().toHexString()),
       None,
       testAppContext.nowF(),
       "test@example.com",
@@ -317,8 +319,8 @@ parent:details.age:minusN18:gt10=yes"""))
   test("ensure a failing end-to-end scenario returns WAITING status so app will try again later") {
 
     val helloTypeEmail = new Email(
-      "id1",
-      Some(""),
+      new ObjectId().toHexString(),
+      Some(new ObjectId().toHexString()),
       None,
       testAppContext.nowF(),
       "fail@example.com",     /* this clause triggers our mock emailsender to return an error. */
