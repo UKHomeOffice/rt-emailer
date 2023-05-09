@@ -71,6 +71,17 @@ class govNotifyEmailSenderSpec extends CatsEffectSuite {
           "subject":"hello",
           "personalisation":{"name":"string"}
         }"""),
+        new Template(s"""{
+          "id":"${java.util.UUID.randomUUID()}",
+          "name":"TemplateWithPersonalisations",
+          "type":"email",
+          "created_at":"2000-01-01T00:00:00.000Z",
+          "updated_at":"2000-01-01T00:00:00.000Z",
+          "version":3,
+          "body":"hello customer",
+          "subject":"hello",
+          "personalisation":{"email:personalisations.name":"string"}
+        }"""),
       )))
     }
 
@@ -166,6 +177,14 @@ class govNotifyEmailSenderSpec extends CatsEffectSuite {
 
     assertEquals(govNotifyEmailSender.useGovNotify(testEmail).unsafeRunSync(), Right(true))
     assertEquals(govNotifyEmailSender.useGovNotify(unknownType).unsafeRunSync(), Right(false))
+  }
+
+  test("use legacy approach if email:personaliations encountered in template but not in email table (backwards-compat feature)") {
+    val emailWithoutPersonalisations = new Email(new ObjectId().toHexString, None, None, testAppContext.nowF(), "test@example.com", "", "", "", "WAITING", emailType = "TemplateWithPersonalisations", Nil, personalisations=None)
+    val emailWithPersonalisations = new Email(new ObjectId().toHexString, None, None, testAppContext.nowF(), "test@example.com", "", "", "", "WAITING", emailType = "TemplateWithPersonalisations", Nil, personalisations=Some(MongoDBObject("x" -> "banana")))
+
+    assertEquals(govNotifyEmailSender.useGovNotify(emailWithoutPersonalisations).unsafeRunSync(), Right(false))
+    assertEquals(govNotifyEmailSender.useGovNotify(emailWithPersonalisations).unsafeRunSync(), Right(true))
   }
 
   test("extracting parameters from case objects work") {

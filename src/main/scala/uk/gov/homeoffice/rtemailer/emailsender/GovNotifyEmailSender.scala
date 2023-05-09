@@ -36,9 +36,26 @@ class GovNotifyEmailSender(implicit appContext :AppContext) extends StrictLoggin
   lazy val mongoWrapper = new GovNotifyMongoWrapper()
 
   // If GovNotify explodes, don't supress and fallback to legacy SMTP solution.
-  // Queue emails until a developer investigates
+  // Queue emails until a developer investigates.
+
+  // As part of EVW release, since some email info cannot be recalled from case:
   def useGovNotify(email: Email) :IO[Either[GovNotifyError, Boolean]] = {
-    getTemplate(email).map { _.map { _.isDefined }}
+    getTemplate(email).map {
+      case Right(Some(template)) =>
+        val usesEmailPersonalisation = getPersonalisationsRequired(template).exists(_.startsWith("email:personalisations"))
+        val hasEmailPersonalisation = email.personalisations.isDefined
+
+        (usesEmailPersonalisation, hasEmailPersonalisation) match {
+          case (true, false) => Right(false) /* if the email uses email:personalisation fields but our email has none, use legacy sending method. (only happens with resend behaviour) */
+          case _ => Right(true)              /* otherwise mere presence of template means use govNotify */
+        }
+
+      // propogate gov notify errors, don't let blips cause the system to send legacy emails
+      case Left(govNotifyError) => Left(govNotifyError)
+
+      // No template, then don't use govNotify
+      case Right(None) => Right(false)
+    }
   }
 
   // if a config value is not found, we just return empty string, we do not throw an error.
@@ -47,9 +64,7 @@ class GovNotifyEmailSender(implicit appContext :AppContext) extends StrictLoggin
       appContext.config.hasPath(s"govNotify.staticPersonalisations.$configName") match {
         case true => Try(appContext.config.getString(s"govNotify.staticPersonalisations.$configName"))
             .toEither
-            .left.map(exc => GovNotifyError(s"Config error govNotify.staticPersonalisations.$configName: ${exc.getMessage}"))
-        case false =>
-          logger.warn(s"gov notify personalisation warning: missing field: $configName (template name: $templateName)")
+            .left.map(exc => GovNotifyError(s"Config error govNotify.staticPersonalisations.$configName: ${exc.getMessage}")) case false => logger.warn(s"gov notify personalisation warning: missing field: $configName (template name: $templateName)")
           Right("")
       }
     }
