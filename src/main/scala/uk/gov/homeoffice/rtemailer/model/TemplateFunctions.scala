@@ -58,8 +58,13 @@ class TemplateFunctions(implicit appContext: AppContext) {
   }
 
   def applyListFunction(value :TList, function :String) :Either[GovNotifyError, TemplateLookup] = {
+    val Contains = "contains(.*)".r
+    val Index = "index(\\d+)".r
+
     Try(function match {
       case "csvList" => TString(value.list.mkString(","))
+      case Contains(text) => if (value.list.contains(text)) TString("yes") else TString("no")
+      case Index(idx) => TString(value.list(idx.toInt))   // throws IndexOutOfBounds intentionally
       case unknownFunction => throw new Exception(s"Invalid function name: $unknownFunction (for a list object)")
     }).toEither
       .left.map(exc => GovNotifyError(exc.getMessage))

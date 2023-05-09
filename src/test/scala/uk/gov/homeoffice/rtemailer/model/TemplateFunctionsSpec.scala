@@ -8,7 +8,11 @@ class TemplateFunctionsSpec extends CatsEffectSuite {
 
   val templateFunctions = new TemplateFunctions()(new AppContext(
     nowF = () => DateTime.parse("2024-01-01T01:02:03"),
-    ConfigFactory.empty,
+    ConfigFactory.parseString("""
+      app {
+        updateTokenSecret = "bonjour mon ami"
+      }
+    """),
     null
   ))
 
@@ -148,8 +152,21 @@ class TemplateFunctionsSpec extends CatsEffectSuite {
   }
 
   test("list stringification") {
-    assertEquals(1, 1)
+    assertEquals(testFunc(TList(List("a", "b")), "csvList"), Right(TString("a,b")))
   }
 
+  test("list contains") {
+    assertEquals(testFunc(TList(List("acorn", "ball")), "containsball"), Right(TString("yes")))
+    assertEquals(testFunc(TList(List("acorn", "ball")), "containsb"), Right(TString("no"))) /* full match expected */
+    assertEquals(testFunc(TList(List("acorn", "ball")), "containsgirl"), Right(TString("no")))
+  }
+
+  test("list index") {
+    assertEquals(testFunc(TList(List("a", "b", "c", "d", "e", "f")), "index4"), Right(TString("e")))
+  }
+
+  test("encrypted token test") {
+    assertEquals(testChain(TString("abcdefg"), "accountToken"), Right(TString("6d38446695e7c87d8895a2eb388b44ea841bed93236034366c8cc7baef18c21c")))
+  }
 }
 
