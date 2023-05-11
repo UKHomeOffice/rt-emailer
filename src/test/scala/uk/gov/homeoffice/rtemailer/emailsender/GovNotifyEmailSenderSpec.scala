@@ -24,6 +24,7 @@ class govNotifyEmailSenderSpec extends CatsEffectSuite {
       }
       govNotify {
         apiKey = "1234"
+        apiKey2 = ""
         caseTable = "submissions"
         staticPersonalisations {
           rt_customer_host = "https://rt.example.com"
@@ -37,13 +38,14 @@ class govNotifyEmailSenderSpec extends CatsEffectSuite {
   )
 
   val fakeNotifyWrapper = new GovNotifyClientWrapper()(testAppContext) {
-    override def getAllTemplates() :IO[Either[GovNotifyError, List[Template]]] = {
+
+    override def getAllTemplates() :IO[Either[GovNotifyError, List[TemplateWC]]] = {
       IO.delay(Right(List(
 
         // This is a realistic example which is explored in the final test
         // which runs through the complete scenario, including parents, config
         // and more.
-        new Template(s"""{
+        TemplateWC(new Template(s"""{
           "id":"${java.util.UUID.randomUUID()}",
           "name":"HelloEmail",
           "type":"email",
@@ -59,8 +61,8 @@ class govNotifyEmailSenderSpec extends CatsEffectSuite {
             "config:rt_customer_host":"",
             "parent:details.age:minusN18:gt10":""
           }
-        }"""),
-        new Template(s"""{
+        }"""), null),
+        TemplateWC(new Template(s"""{
           "id":"${java.util.UUID.randomUUID()}",
           "name":"InfoEmail",
           "type":"email",
@@ -70,8 +72,8 @@ class govNotifyEmailSenderSpec extends CatsEffectSuite {
           "body":"hello customer",
           "subject":"hello",
           "personalisation":{"name":"string"}
-        }"""),
-        new Template(s"""{
+        }"""), null),
+        TemplateWC(new Template(s"""{
           "id":"${java.util.UUID.randomUUID()}",
           "name":"TemplateWithPersonalisations",
           "type":"email",
@@ -81,11 +83,11 @@ class govNotifyEmailSenderSpec extends CatsEffectSuite {
           "body":"hello customer",
           "subject":"hello",
           "personalisation":{"email:personalisations.name":"string"}
-        }"""),
+        }"""), null),
       )))
     }
 
-    override def generateTemplatePreview(template :Template, personalisations :Map[String, String]) :IO[Either[GovNotifyError, TemplatePreview]] = {
+    override def generateTemplatePreview(template :TemplateWC, personalisations :Map[String, String]) :IO[Either[GovNotifyError, TemplatePreview]] = {
 
       template.getName() match {
         case "HelloEmail" =>
@@ -109,7 +111,7 @@ class govNotifyEmailSenderSpec extends CatsEffectSuite {
       }
     }
 
-    override def sendEmail(email :Email, template: Template, allPersonalisations :Map[String, String]) :IO[Either[GovNotifyError, SendEmailResponse]] = {
+    override def sendEmail(email :Email, template: TemplateWC, allPersonalisations :Map[String, String]) :IO[Either[GovNotifyError, SendEmailResponse]] = {
 
       email.recipient match {
         case "fail@example.com" =>
