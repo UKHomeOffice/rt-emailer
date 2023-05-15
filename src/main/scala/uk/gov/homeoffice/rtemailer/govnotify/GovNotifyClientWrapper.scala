@@ -1,6 +1,7 @@
 package uk.gov.homeoffice.rtemailer.govnotify
 
 import cats.effect._
+import cats.data.EitherT
 import com.typesafe.scalalogging.StrictLogging
 import uk.gov.service.notify.{NotificationClient, Template, TemplatePreview, SendEmailResponse}
 import uk.gov.homeoffice.rtemailer.model._
@@ -8,26 +9,53 @@ import uk.gov.homeoffice.domain.core.email.Email
 import scala.collection.JavaConverters._
 import scala.util.Try
 
+case class TemplateWC(template :Template, client :NotificationClient) {
+  def getPersonalisation() :java.util.Optional[java.util.Map[String,Object]] = template.getPersonalisation()
+  def getName() :String = template.getName()
+  def getId() :java.util.UUID = template.getId()
+}
+
 class GovNotifyClientWrapper(implicit appContext :AppContext) extends StrictLogging {
   import uk.gov.homeoffice.rtemailer.Util._
 
-  lazy val notifyClient = new NotificationClient(appContext.config.getString("govNotify.apiKey"))
+  val notifyClient1 = new NotificationClient(appContext.config.getString("govNotify.apiKey"))
 
-  def getAllTemplates() :IO[Either[GovNotifyError, List[Template]]] = {
-    IO.blocking(Try(notifyClient.getAllTemplates("email").getTemplates().asScala.toList)
+  val notifyClient2 :Option[NotificationClient] = appContext.config.getString("govNotify.apiKey2") match {
+    case "" => None
+    case key2 => Some(new NotificationClient(key2))
+  }
+
+  def getAllTemplates() :IO[Either[GovNotifyError, List[TemplateWC]]] = {
+    val client1Templates = getAllClientTemplates(notifyClient1)
+
+    val client2Templates = notifyClient2 match {
+      case None => IO.delay(Right(List.empty))
+      case Some(client2) => getAllClientTemplates(client2)
+    }
+
+    (for {
+      client1TemplatesList <- EitherT(client1Templates)
+      client2TemplatesList <- EitherT(client2Templates)
+    } yield { client1TemplatesList ++ client2TemplatesList }).value
+  }
+
+  private def getAllClientTemplates(client :NotificationClient) :IO[Either[GovNotifyError, List[TemplateWC]]] = {
+    IO.blocking(Try(client.getAllTemplates("email").getTemplates().asScala.toList)
       .toEither
       .map { templates =>
         val templateNames = templates.map(_.getName()).mkString(",")
         logger.info(s"Templates returned from gov notify: $templateNames")
-        templates
+        // We attach the client to the template to support working with
+        // templates with multiple clients, as is the scenario with RT/GE.
+        templates.map { tmp => TemplateWC(tmp, client) }
       }
       .left.map(exc => GovNotifyError(s"Error calling GovNotify.getAllTemplates: ${exc.getMessage}"))
     )
   }
 
-  def generateTemplatePreview(template :Template, personalisations :Map[String, String]) :IO[Either[GovNotifyError, TemplatePreview]] = {
-    IO.blocking(Try(notifyClient.generateTemplatePreview(
-      template.getId().toString(),
+  def generateTemplatePreview(twc :TemplateWC, personalisations :Map[String, String]) :IO[Either[GovNotifyError, TemplatePreview]] = {
+    IO.blocking(Try(twc.client.generateTemplatePreview(
+      twc.template.getId().toString(),
       personalisations.asJavaMap(),
     )).toEither match {
       case Left(exc) =>
@@ -40,9 +68,9 @@ class GovNotifyClientWrapper(implicit appContext :AppContext) extends StrictLogg
     )
   }
 
-  def sendEmail(email :Email, template :Template, allPersonalisations :Map[String, String]) :IO[Either[GovNotifyError, SendEmailResponse]] = {
-    IO.blocking(Try(notifyClient.sendEmail(
-      template.getId().toString(),
+  def sendEmail(email :Email, twc :TemplateWC, allPersonalisations :Map[String, String]) :IO[Either[GovNotifyError, SendEmailResponse]] = {
+    IO.blocking(Try(twc.client.sendEmail(
+      twc.template.getId().toString(),
       email.recipient,
       allPersonalisations.asJavaMap(),
       email.emailId,

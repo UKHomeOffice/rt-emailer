@@ -5,7 +5,6 @@ import cats.effect._
 import uk.gov.homeoffice.domain.core.email.Email
 import uk.gov.homeoffice.domain.core.email.EmailStatus._
 import com.typesafe.scalalogging.StrictLogging
-import uk.gov.service.notify.Template
 import com.mongodb.casbah.commons.MongoDBObject
 import org.bson.types.ObjectId
 import scala.collection.JavaConverters._
@@ -117,7 +116,7 @@ class GovNotifyEmailSender(implicit appContext :AppContext) extends StrictLoggin
           }
           Right((personalisationRequired, resolvedValue))
         case Right(list) =>
-          logger.warn(s"gov notify personalisation warning: $personalisationRequired. error: lookup doesn't result in string. missing csvList call? (templateName: $templateName)")
+          logger.warn(s"gov notify personalisation warning: $personalisationRequired. error: lookup doesn't result in string. missing date/csvList call? (templateName: $templateName)")
           Right((personalisationRequired, list.stringValue()))
         case Left(govNotifyError) =>
           logger.warn(s"gov notify personalisation warning: $personalisationRequired. error: $govNotifyError (templateName: $templateName)")
@@ -155,7 +154,7 @@ class GovNotifyEmailSender(implicit appContext :AppContext) extends StrictLoggin
   }
 
 
-  def getPersonalisationsRequired(template :Template) :List[String] = {
+  def getPersonalisationsRequired(template :TemplateWC) :List[String] = {
     val personalisationsRequired = template.getPersonalisation().asScalaOption.map(_.keySet.asScala.toList).getOrElse(List.empty)
     if (appContext.config.getBoolean("app.templateDebug")) {
       logger.info(s"Personalisatons Required for ${template.getName()} (${template.getId()}): $personalisationsRequired")
@@ -163,7 +162,7 @@ class GovNotifyEmailSender(implicit appContext :AppContext) extends StrictLoggin
     personalisationsRequired
   }
 
-  def getTemplate(email :Email) :IO[Either[GovNotifyError, Option[Template]]] = {
+  def getTemplate(email :Email) :IO[Either[GovNotifyError, Option[TemplateWC]]] = {
     notifyClientWrapper.getAllTemplates().map { _.map { allTemplates =>
       allTemplates.find(_.getName() == email.emailType)
     }}
