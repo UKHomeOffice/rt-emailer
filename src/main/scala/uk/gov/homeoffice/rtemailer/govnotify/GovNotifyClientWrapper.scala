@@ -1,6 +1,7 @@
 package uk.gov.homeoffice.rtemailer.govnotify
 
 import cats.effect._
+import cats.implicits._
 import cats.data.EitherT
 import com.typesafe.scalalogging.StrictLogging
 import uk.gov.service.notify.{NotificationClient, Template, TemplatePreview, SendEmailResponse}
@@ -69,11 +70,28 @@ class GovNotifyClientWrapper(implicit appContext :AppContext) extends StrictLogg
   }
 
   def sendEmail(email :Email, twc :TemplateWC, allPersonalisations :Map[String, String]) :IO[Either[GovNotifyError, SendEmailResponse]] = {
+    val allCopies = List(email.recipient) ++ email.cc
+    val emailsSent :IO[List[Either[GovNotifyError, SendEmailResponse]]] = allCopies.zipWithIndex.map {
+      case (recipient, 0) => sendOneEmail(recipient, email.emailId, twc, allPersonalisations)
+      case (recipient, n) => sendOneEmail(recipient, email.emailId + s"[cc=$n]", twc, allPersonalisations)
+    }.sequence
+
+    emailsSent.map { list =>
+      list.partition(_.isLeft) match {
+        case (Nil, firstGoodResult :: _) => firstGoodResult
+        case (errors, _) =>
+          errors.foreach(err => logger.error(s"Error sending govNotify email: $err"))
+          errors.head
+      }
+    }
+  }
+
+  def sendOneEmail(recipient :String, emailReference :String, twc :TemplateWC, allPersonalisations :Map[String, String]) :IO[Either[GovNotifyError, SendEmailResponse]] = {
     IO.blocking(Try(twc.client.sendEmail(
       twc.template.getId().toString(),
-      email.recipient,
+      recipient,
       allPersonalisations.asJavaMap(),
-      email.emailId,
+      emailReference,
     ))
       .toEither match {
         case Left(exc) =>

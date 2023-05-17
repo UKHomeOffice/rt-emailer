@@ -135,22 +135,32 @@ class GovNotifyEmailSender(implicit appContext :AppContext) extends StrictLoggin
   // We can use the generic buildObjectPersonalisations to extract
   // personalisations from a case object, an email object or a parent object.
 
-  def buildCasePersonalisations(personalisationsRequired :List[String], caseObj :MongoDBObject, templateName :String) :Either[GovNotifyError, Map[String, String]] =
-    buildObjectPersonalisations(personalisationsRequired, caseObj, templateName, "case")
+  def buildCasePersonalisations(personalisationsRequired :List[String], email :Email, templateName :String) :IO[Either[GovNotifyError, (Map[String, String], Option[MongoDBObject])]] = {
+    mongoWrapper.caseObjectFromEmail(email).map {
+      case Right(Some(caseObj)) => buildObjectPersonalisations(personalisationsRequired, caseObj, templateName, "case").map { m => (m, Some(caseObj)) }
+      case Right(None) => Right((Map.empty, None))
+      case Left(govNotifyError) => Left(govNotifyError)
+    }
+  }
 
   def buildEmailPersonalisations(personalisationsRequired :List[String], email :Email, templateName :String) :Either[GovNotifyError, Map[String, String]] = {
     buildObjectPersonalisations(personalisationsRequired, new MongoDBObject(email.toDBObject), templateName, "email")
   }
 
-  def buildParentPersonalisations(personalisationsRequired :List[String], caseObj :MongoDBObject, templateName :String) :IO[Either[GovNotifyError, Map[String, String]]] = {
-    mongoWrapper.parentObjectFromCase(caseObj)
-      .map {
-        case Right(Some(parentCaseObj)) => buildObjectPersonalisations(personalisationsRequired, parentCaseObj, templateName, "parent")
-        case Right(None) => Right(Map.empty)
-        case Left(err) =>
-          logger.warn(s"gov notify personalisation warning fetching parent: ${err}")
-          Left(err)
-      }
+  def buildParentPersonalisations(personalisationsRequired :List[String], maybeCaseObj :Option[MongoDBObject], templateName :String) :IO[Either[GovNotifyError, Map[String, String]]] = {
+    maybeCaseObj match {
+      case Some(caseObj) =>
+        mongoWrapper.parentObjectFromCase(caseObj)
+          .map {
+            case Right(Some(parentCaseObj)) => buildObjectPersonalisations(personalisationsRequired, parentCaseObj, templateName, "parent")
+            case Right(None) => Right(Map.empty)
+            case Left(err) =>
+              logger.warn(s"gov notify personalisation warning fetching parent: ${err}")
+              Left(err)
+          }
+      case None =>
+        IO.delay(Right(Map.empty))
+    }
   }
 
 
@@ -173,55 +183,46 @@ class GovNotifyEmailSender(implicit appContext :AppContext) extends StrictLoggin
     getTemplate(email).flatMap {
       case Right(Some(template)) =>
         val personalisationsRequired = getPersonalisationsRequired(template)
-        mongoWrapper.caseObjectFromEmail(email).flatMap {
-          case Right(Some(caseObj)) =>
 
-            val allPersonalisations = for {
-              casePersonalisations <- EitherT(IO.delay(buildCasePersonalisations(personalisationsRequired, caseObj, template.getName())))
-              parentPersonalisations <- EitherT(buildParentPersonalisations(personalisationsRequired, caseObj, template.getName()))
-              emailPersonalisations <- EitherT(IO.delay(buildEmailPersonalisations(personalisationsRequired, email, template.getName())))
-              configPersonalisations <- EitherT(IO.delay(buildConfigPersonalisations(personalisationsRequired, template.getName())))
-            } yield {
-              casePersonalisations ++ parentPersonalisations ++ emailPersonalisations ++ configPersonalisations
-            }
+        val allPersonalisations = for {
+          (casePersonalisations, caseObj) <- EitherT(buildCasePersonalisations(personalisationsRequired, email, template.getName()))
+          parentPersonalisations <- EitherT(buildParentPersonalisations(personalisationsRequired, caseObj, template.getName()))
+          emailPersonalisations <- EitherT(IO.delay(buildEmailPersonalisations(personalisationsRequired, email, template.getName())))
+          configPersonalisations <- EitherT(IO.delay(buildConfigPersonalisations(personalisationsRequired, template.getName())))
+        } yield {
+          casePersonalisations ++ parentPersonalisations ++ emailPersonalisations ++ configPersonalisations
+        }
 
-            allPersonalisations.value.flatMap {
-              case Left(err) =>
-                logger.error(s"Cannot send email ${email.emailId} to ${email.recipient} due to error: $err")
-                IO.delay(Waiting)
-              case Right(allPersonalisations) =>
-                if (appContext.config.getBoolean("app.templateDebug")) {
-                  logger.info(s"Personalisations: ${allPersonalisations.mkString("\n")}")
-                }
-                notifyClientWrapper.generateTemplatePreview(
-                  template,
-                  allPersonalisations
-                ).flatMap {
-                  case Right(templatePreview) =>
-                    notifyClientWrapper.sendEmail(
-                      email,
-                      template,
-                      allPersonalisations
-                    ).map {
-                        case Right(response) =>
-                          val govNotifyRef = response.getReference().asScalaOption.getOrElse("")
-                          logger.info(s"Email sent via Gov Notify. Notification Id: ${response.getNotificationId()}, gov notify reference: ${govNotifyRef}, email table id: ${email.emailId}, template: ${response.getTemplateId()}, template version: ${response.getTemplateVersion()}")
-                          Sent(newText = Some(templatePreview.getBody()), newHtml = templatePreview.getHtml().asScalaOption)
-                        case Left(govNotifySendError) =>
-                          logger.error(s"Cannot send email ${email.emailId} to ${email.recipient} via GovNotify. Error during send: $govNotifySendError")
-                          Waiting
-                    }
-                  case Left(govNotifyTemplateError) =>
-                    logger.error(s"Cannot send email ${email.emailId} to ${email.recipient} via GovNotify. Error generating template preview: $govNotifyTemplateError")
-                    IO.delay(Waiting)
-                }
-            }
-          case Right(None) =>
-            logger.error(s"Cannot send email ${email.emailId} to ${email.recipient} via GovNotify as caseId is invalid (and required for every email using GovNotify)")
-            IO.delay(Waiting)
+        allPersonalisations.value.flatMap {
           case Left(err) =>
             logger.error(s"Cannot send email ${email.emailId} to ${email.recipient} due to error: $err")
             IO.delay(Waiting)
+          case Right(allPersonalisations) =>
+            if (appContext.config.getBoolean("app.templateDebug")) {
+              logger.info(s"Personalisations: ${allPersonalisations.mkString("\n")}")
+            }
+            notifyClientWrapper.generateTemplatePreview(
+              template,
+              allPersonalisations
+            ).flatMap {
+              case Right(templatePreview) =>
+                notifyClientWrapper.sendEmail(
+                  email,
+                  template,
+                  allPersonalisations
+                ).map {
+                    case Right(response) =>
+                      val govNotifyRef = response.getReference().asScalaOption.getOrElse("")
+                      logger.info(s"Email sent via Gov Notify. Notification Id: ${response.getNotificationId()}, gov notify reference: ${govNotifyRef}, email table id: ${email.emailId}, template: ${response.getTemplateId()}, template version: ${response.getTemplateVersion()}")
+                      Sent(newText = Some(templatePreview.getBody()), newHtml = templatePreview.getHtml().asScalaOption)
+                    case Left(govNotifySendError) =>
+                      logger.error(s"Cannot send email ${email.emailId} to ${email.recipient} via GovNotify. Error during send: $govNotifySendError")
+                      Waiting
+                }
+              case Left(govNotifyTemplateError) =>
+                logger.error(s"Cannot send email ${email.emailId} to ${email.recipient} via GovNotify. Error generating template preview: $govNotifyTemplateError")
+                IO.delay(Waiting)
+          }
         }
       case Right(None) =>
         logger.error(s"Cannot send email ${email.emailId} to ${email.recipient} via GovNotify as no template is found")

@@ -1,11 +1,17 @@
 package uk.gov.homeoffice.rtemailer.govnotify
 
 import munit.CatsEffectSuite
+import cats.effect._
+import org.bson.types.ObjectId
 import org.joda.time.DateTime
 import com.typesafe.config.ConfigFactory
 import uk.gov.homeoffice.rtemailer.model.AppContext
 import uk.gov.service.notify.{Template, TemplateList, NotificationClient}
 import scala.collection.JavaConverters._
+import com.mongodb.casbah.commons.MongoDBObject
+import uk.gov.homeoffice.domain.core.email.Email
+import uk.gov.homeoffice.rtemailer.model._
+import uk.gov.service.notify.{Template, SendEmailResponse}
 
 class GovNotifyClientWrapperSpec extends CatsEffectSuite {
 
@@ -80,5 +86,88 @@ class GovNotifyClientWrapperSpec extends CatsEffectSuite {
         assertEquals(list.headOption.map(_.client), Some(govNotifyClient.notifyClient1))
         assertEquals(list.lastOption.map(_.client), govNotifyClient.notifyClient2)
     }
+  }
+
+  test("sendEmail call sends emails to everyone in cc list") {
+
+    // track calls to sendOneEmail
+    case class EmailSent(recipient :String, reference :String)
+    var testCounter :List[EmailSent] = List()
+
+
+    val testAppContext = new AppContext(
+      nowF = () => DateTime.parse("2024-01-01T01:02:03"),
+      ConfigFactory.parseString("""
+        app {
+          templateDebug = false
+        }
+        govNotify {
+          apiKey = "1234"
+          apiKey2 = ""
+        }
+      """),
+      null
+    )
+
+    val govNotifyClient = new GovNotifyClientWrapper()(testAppContext) {
+      override def sendOneEmail(recipient :String, emailReference :String, twc :TemplateWC, allPersonalisations :Map[String, String]) :IO[Either[GovNotifyError, SendEmailResponse]] = {
+          testCounter = testCounter ++ List(EmailSent(recipient, emailReference))
+          IO.delay(Right(new SendEmailResponse(s"""{
+            "id":"37370573-5a48-4f10-aed7-b632fb48bcf4",
+            "reference":"3231232313",
+            "content":{
+              "body" : "new text",
+              "subject":"end-to-end test scenario"
+            },
+            "template":{
+              "id":"37370573-5a48-4f10-aed7-b632fb48bcf4",
+              "version":3,
+              "uri":"https://gov-notify.example.com/uri/test"
+            }
+          }""")))
+        }
+    }
+
+    val emailId = new ObjectId().toHexString
+
+    val email = new Email(
+      emailId,
+      None,
+      None,
+      testAppContext.nowF(),
+      "main-recipient@example.com",
+      "",
+      "",
+      "",
+      "WAITING",
+      emailType = "HelloMyFriend",
+      cc = List(
+        "two@example.com",
+        "three@test.com"
+      ),
+      personalisations=Some(MongoDBObject("bool" -> true))
+    )
+
+    // call sendEmail
+    val result = govNotifyClient.sendEmail(email, TemplateWC(new Template(s"""{
+        "id":"${java.util.UUID.randomUUID()}",
+        "name":"TemplateWithPersonalisations",
+        "type":"email",
+        "created_at":"2000-01-01T00:00:00.000Z",
+        "updated_at":"2000-01-01T00:00:00.000Z",
+        "version":3,
+        "body":"hello customer",
+        "subject":"hello",
+        "personalisation":{"email:personalisations.name":"string"}
+      }"""), null),
+      Map.empty
+    ).unsafeRunSync()
+
+    assert(result.isRight)
+    assertEquals(testCounter, List(
+      EmailSent("main-recipient@example.com", emailId),
+      EmailSent("two@example.com", emailId + "[cc=1]"),
+      EmailSent("three@test.com", emailId + "[cc=2]")
+    ))
   }
 }
