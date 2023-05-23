@@ -77,11 +77,18 @@ class GovNotifyClientWrapper(implicit appContext :AppContext) extends StrictLogg
     }.sequence
 
     emailsSent.map { list =>
-      list.partition(_.isLeft) match {
-        case (Nil, firstGoodResult :: _) => firstGoodResult
-        case (errors, _) =>
-          errors.foreach(err => logger.error(s"Error sending govNotify email: $err"))
-          errors.head
+      val errorList = list.collect { case Left(govNotifyError) => govNotifyError }
+      val goodResponseList = list.collect { case Right(sendEmailResponse) => sendEmailResponse }
+      (errorList, goodResponseList) match {
+        case (Nil, firstGoodResponse :: _) => Right(firstGoodResponse)
+        case (oneError :: Nil, Nil) => Left(oneError)
+        case (errorList, Nil) =>
+          errorList.zipWithIndex.foreach { case (err, idx) => logger.error(s"Multiple errors and no success sending govNotify email: ${email.emailId}. $idx: $err") }
+          Left(GovNotifyError(s"Multiple errors and no success sending govNotify email: ${email.emailId}. (System will retry)", transient = true))
+        case (errorList, successList) =>
+          errorList.zipWithIndex.foreach { case (err, idx) => logger.error(s"Mixed error/success sending govNotify email: ${email.emailId}. index: $idx: $err") }
+          successList.zipWithIndex.foreach { case (good, idx) => logger.info(s"Success for partial email part: ${email.emailId}. index: $idx: ${good.getReference().asScalaOption}") }
+          Left(GovNotifyError(s"Mixed error/success sending govNotify email: ${email.emailId}. (Permanent failure)", transient = false)) // transient flag critical importance to stop spamming emails to people!
       }
     }
   }
@@ -96,7 +103,7 @@ class GovNotifyClientWrapper(implicit appContext :AppContext) extends StrictLogg
       .toEither match {
         case Left(exc) =>
           appContext.updateAppStatus(_.recordGovNotifyError(s"Error calling GovNotify.sendEmail: ${exc.getMessage}"))
-          Left(GovNotifyError(s"Error calling GovNotify.sendEmail: ${exc.getMessage}"))
+          Left(GovNotifyError(s"Error calling GovNotify.sendEmail (email reference: $emailReference, recipient: $recipient): ${exc.getMessage}"))
         case Right(sendEmailResponse) =>
           appContext.updateAppStatus(_.markGovNotifyOk)
           Right(sendEmailResponse)

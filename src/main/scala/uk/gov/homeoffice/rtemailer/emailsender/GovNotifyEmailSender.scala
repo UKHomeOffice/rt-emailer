@@ -9,6 +9,8 @@ import com.mongodb.casbah.commons.MongoDBObject
 import org.bson.types.ObjectId
 import scala.collection.JavaConverters._
 import scala.util.Try
+import scala.concurrent.duration.Duration
+
 import uk.gov.homeoffice.rtemailer.model._
 import uk.gov.homeoffice.rtemailer.govnotify._
 
@@ -215,9 +217,15 @@ class GovNotifyEmailSender(implicit appContext :AppContext) extends StrictLoggin
                       val govNotifyRef = response.getReference().asScalaOption.getOrElse("")
                       logger.info(s"Email sent via Gov Notify. Notification Id: ${response.getNotificationId()}, gov notify reference: ${govNotifyRef}, email table id: ${email.emailId}, template: ${response.getTemplateId()}, template version: ${response.getTemplateVersion()}")
                       Sent(newText = Some(templatePreview.getBody()), newHtml = templatePreview.getHtml().asScalaOption)
-                    case Left(govNotifySendError) =>
+                    case Left(govNotifySendError) if govNotifySendError.transient && exhaustedRetries(email) =>
+                      logger.error(s"Cannot send email ${email.emailId} to ${email.recipient} via GovNotify. Error during send: $govNotifySendError. Exhausted Retries")
+                      ExhaustedRetries
+                    case Left(govNotifySendError) if govNotifySendError.transient =>
                       logger.error(s"Cannot send email ${email.emailId} to ${email.recipient} via GovNotify. Error during send: $govNotifySendError")
                       Waiting
+                    case Left(govNotifySendError) if !govNotifySendError.transient =>
+                      logger.error(s"Cannot send email ${email.emailId} via GovNotify due to partial success/failure. To avoid spamming, delivery will not be retried. Error during send: $govNotifySendError")
+                      PartialError(govNotifySendError.message)
                 }
               case Left(govNotifyTemplateError) =>
                 logger.error(s"Cannot send email ${email.emailId} to ${email.recipient} via GovNotify. Error generating template preview: $govNotifyTemplateError")
@@ -231,6 +239,10 @@ class GovNotifyEmailSender(implicit appContext :AppContext) extends StrictLoggin
         logger.error(s"Cannot send email ${email.emailId} to ${email.recipient} due to error fetching template: $err")
         IO.delay(Waiting)
     }
+  }
+
+  def exhaustedRetries(email :Email) :Boolean = {
+    email.date.isBefore(appContext.nowF().minusHours(Duration(appContext.config.getString("govNotify.exhaustedTimeout")).toHours.toInt))
   }
 }
 
