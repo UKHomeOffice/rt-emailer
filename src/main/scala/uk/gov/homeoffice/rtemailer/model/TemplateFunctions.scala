@@ -1,6 +1,6 @@
 package uk.gov.homeoffice.rtemailer.model
 
-import org.joda.time.DateTime
+import org.joda.time._
 import org.joda.time.format.DateTimeFormat
 import scala.annotation.tailrec
 import scala.util.Try
@@ -51,6 +51,13 @@ class TemplateFunctions(implicit appContext: AppContext) {
         // evw membership number is only thing we ever use this function with: ((case:membershipNumber:accountToken))
         import com.roundeights.hasher.Implicits._
         TString(value.string.salt(appContext.config.getString("app.updateTokenSecret")).sha256.hex)
+      case "parseDate" =>
+        val goodPatterns = List("yyyy-MM-dd", "yyyy-MM-dd'T'HH:mm:ss", "yyyy-MM-dd'T'HH:mm:ssZ", "dd/MM/yyyy")
+        val firstMatch = goodPatterns.flatMap(pattern => Try(DateTimeFormat.forPattern(pattern).parseDateTime(value.string)).toOption).headOption
+        firstMatch match {
+          case Some(dateObj) => TDate(dateObj.withZone(DateTimeZone.UTC))
+          case None => throw new Exception(s"can't call parseDate on ${value.string}. Bad date format")
+        }
       case unknownFunction => throw new Exception(s"Invalid function name: $unknownFunction (for a string object)")
     }).toEither
       .left.map(exc => GovNotifyError(exc.getMessage))
