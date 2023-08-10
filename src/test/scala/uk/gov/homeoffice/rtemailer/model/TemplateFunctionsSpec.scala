@@ -14,6 +14,7 @@ class TemplateFunctionsSpec extends CatsEffectSuite {
         updateTokenSecret = "bonjour mon ami"
       }
     """),
+    null,
     null
   ))
 

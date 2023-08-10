@@ -34,6 +34,7 @@ class govNotifyEmailSenderSpec extends CatsEffectSuite {
         }
       }
     """),
+    null,
     null
   )
 

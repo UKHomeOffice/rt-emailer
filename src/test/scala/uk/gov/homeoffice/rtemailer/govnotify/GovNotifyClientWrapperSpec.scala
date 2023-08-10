@@ -58,6 +58,7 @@ class GovNotifyClientWrapperSpec extends CatsEffectSuite {
           apiKey2 = "5678"
         }
       """),
+      null,
       null
     )
 
@@ -106,6 +107,7 @@ class GovNotifyClientWrapperSpec extends CatsEffectSuite {
           apiKey2 = ""
         }
       """),
+      null,
       null
     )
 

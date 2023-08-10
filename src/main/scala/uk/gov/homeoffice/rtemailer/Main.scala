@@ -12,6 +12,8 @@ import com.mongodb.casbah.MongoClientURI
 import scala.concurrent.duration._
 import uk.gov.homeoffice.mongo.casbah.Mongo
 import uk.gov.homeoffice.rtemailer.model.{AppStatus, AppContext}
+import github.gphat.censorinus._
+import github.gphat.censorinus.statsd.Encoder
 
 object Main extends IOApp.Simple with StrictLogging {
 
@@ -50,6 +52,29 @@ object Main extends IOApp.Simple with StrictLogging {
 
   val mongoDB = Mongo.mongoDB(MongoClientURI(mongoConnectionString))
 
+  val statsDClient = new Client(
+    sender = new UDPSender(
+      hostname = config.getString("statsd.host"),
+      port = config.getInt("statsd.port"),
+      allowExceptions = false
+    ),
+    encoder = Encoder,
+    prefix = config.getString("statsd.prefix")
+  ) {
+    override def enqueue(metric: Metric, sampleRate: Double, bypassSampler: Boolean): Unit = {
+      val prefixedMetric = metric match {
+        case c: CounterMetric => c.copy(name=makeName(c.name))
+        case g: GaugeMetric => g.copy(name=makeName(g.name))
+        case h: HistogramMetric => h.copy(name=makeName(h.name))
+        case s: SetMetric => s.copy(name=makeName(s.name))
+        case ms: TimerMetric => ms.copy(name=makeName(ms.name))
+        case m :MeterMetric => m.copy(name=makeName(m.name))
+        case e => e
+      }
+      super.enqueue(prefixedMetric, sampleRate, bypassSampler)
+    }
+  }
+
   // set up a global variable called appStatus that can be manipulated
   // to show stats on the /status endpoint.
   val appStatus = AppStatus(
@@ -67,7 +92,8 @@ object Main extends IOApp.Simple with StrictLogging {
   var appContext = AppContext(
     DateTime.now,
     config,
-    mongoDB
+    mongoDB,
+    statsDClient
   )
 
   var run = RtemailerServer.run(appContext)
