@@ -1,7 +1,8 @@
 package uk.gov.homeoffice.rtemailer.model
 
 import munit.CatsEffectSuite
-import org.joda.time.DateTime
+import org.joda.time._
+import org.joda.time.format.DateTimeFormat
 import com.typesafe.config.ConfigFactory
 
 class TemplateFunctionsSpec extends CatsEffectSuite {
@@ -13,6 +14,7 @@ class TemplateFunctionsSpec extends CatsEffectSuite {
         updateTokenSecret = "bonjour mon ami"
       }
     """),
+    null,
     null
   ))
 
@@ -167,6 +169,15 @@ class TemplateFunctionsSpec extends CatsEffectSuite {
 
   test("encrypted token test") {
     assertEquals(testChain(TString("abcdefg"), "accountToken"), Right(TString("6d38446695e7c87d8895a2eb388b44ea841bed93236034366c8cc7baef18c21c")))
+  }
+
+
+  test("parseDate") {
+    def parseDT(in :String) :DateTime = DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:mm:ssZ").parseDateTime(in).withZone(DateTimeZone.UTC)
+    assertEquals(testFunc(TString("2024-01-02"), "parseDate"), Right(TDate(parseDT("2024-01-02T00:00:00Z"))))
+    assertEquals(testFunc(TString("2024-01-02T00:00:00Z"), "parseDate"), Right(TDate(parseDT("2024-01-02T00:00:00Z"))))
+    assertEquals(testFunc(TString("2/1/2024"), "parseDate"), Right(TDate(parseDT("2024-01-02T00:00:00Z"))))
+    assertEquals(testFunc(TString("broken"), "parseDate"), Left(GovNotifyError("can't call parseDate on broken. Bad date format")))
   }
 }
 
