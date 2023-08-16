@@ -16,7 +16,7 @@ case class AppContext(
   }
 
   def recordMetric(name :String, value :Int) :Unit = {
-    Option(statsDClient).foreach(_.enqueue(CounterMetric(name, value.toDouble)))
+    Option(statsDClient).foreach(_.enqueue(GaugeMetric(name, value.toDouble)))
   }
 }
 
