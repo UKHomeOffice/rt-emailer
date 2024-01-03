@@ -1,7 +1,7 @@
-val Http4sVersion = "0.23.18"
-val CirceVersion = "0.14.3"
+val Http4sVersion = "0.23.24"
+val CirceVersion = "0.14.6"
 val MunitVersion = "0.7.29"
-val LogbackVersion = "1.2.11"
+val LogbackVersion = "1.4.14"
 val MunitCatsEffectVersion = "1.0.7"
 
 credentials += Credentials(Path.userHome / ".ivy2" / ".credentials")
@@ -18,7 +18,7 @@ lazy val root = (project in file("."))
   .settings(
     organization := "uk.gov.homeoffice",
     name := "rt-emailer",
-    version := "2.0.0",
+    version := "2.0.1",
     scalaVersion := "2.12.16",
     libraryDependencies ++= Seq(
       "org.http4s"      %% "http4s-ember-server" % Http4sVersion,
@@ -32,12 +32,11 @@ lazy val root = (project in file("."))
       "ch.qos.logback"  %  "logback-classic"     % LogbackVersion         % Runtime,
       "org.scalameta"   %% "svm-subs"            % "20.2.0",
       "uk.gov.homeoffice" %% "rtp-email-lib"     % "3.4.33-gfb4271c",
-      "com.typesafe"     % "config"              % "1.4.0",
-      "ch.qos.logback"   %  "logback-classic"    % "1.2.3",
-      "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2",
-      "com.github.eikek" %% "emil-common" % "0.13.0",
-      "com.github.eikek" %% "emil-javamail" % "0.13.0",
-      "uk.gov.service.notify" % "notifications-java-client" % "3.19.1-RELEASE",
+      "com.typesafe"     % "config"              % "1.4.3",
+      "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5",
+      "com.github.eikek" %% "emil-common" % "0.15.0",
+      "com.github.eikek" %% "emil-javamail" % "0.15.0",
+      "uk.gov.service.notify" % "notifications-java-client" % "3.19.2-RELEASE",
       "com.outr" %% "hasher" % "1.2.2",
       "com.github.gphat" %% "censorinus" % "2.1.16"
     ),
