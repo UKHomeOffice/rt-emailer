@@ -34,7 +34,7 @@ class GovNotifyEmailSender(implicit appContext :AppContext) extends StrictLoggin
   import uk.gov.homeoffice.rtemailer.Util._
 
   lazy val notifyClientWrapper = new GovNotifyClientWrapper()
-  lazy val mongoWrapper = new GovNotifyMongoWrapper()
+  //lazy val mongoWrapper = new GovNotifyMongoWrapper()
 
   // If GovNotify explodes, don't supress and fallback to legacy SMTP solution.
   // Queue emails until a developer investigates.
@@ -138,7 +138,7 @@ class GovNotifyEmailSender(implicit appContext :AppContext) extends StrictLoggin
   // personalisations from a case object, an email object or a parent object.
 
   def buildCasePersonalisations(personalisationsRequired :List[String], email :Email, templateName :String) :IO[Either[GovNotifyError, (Map[String, String], Option[MongoDBObject])]] = {
-    mongoWrapper.caseObjectFromEmail(email).map {
+    appContext.database.caseObjectFromEmail(email).map {
       case Right(Some(caseObj)) => buildObjectPersonalisations(personalisationsRequired, caseObj, templateName, "case").map { m => (m, Some(caseObj)) }
       case Right(None) => Right((Map.empty, None))
       case Left(govNotifyError) => Left(govNotifyError)
@@ -152,7 +152,7 @@ class GovNotifyEmailSender(implicit appContext :AppContext) extends StrictLoggin
   def buildParentPersonalisations(personalisationsRequired :List[String], maybeCaseObj :Option[MongoDBObject], templateName :String) :IO[Either[GovNotifyError, Map[String, String]]] = {
     maybeCaseObj match {
       case Some(caseObj) =>
-        mongoWrapper.parentObjectFromCase(caseObj)
+        appContext.database.parentObjectFromCaseObject(caseObj)
           .map {
             case Right(Some(parentCaseObj)) => buildObjectPersonalisations(personalisationsRequired, parentCaseObj, templateName, "parent")
             case Right(None) => Right(Map.empty)
@@ -246,38 +246,38 @@ class GovNotifyEmailSender(implicit appContext :AppContext) extends StrictLoggin
   }
 }
 
-class GovNotifyMongoWrapper(implicit appContext :AppContext) extends StrictLogging {
-  import uk.gov.homeoffice.rtemailer.Util._
-
-  lazy val caseTable :String = appContext.config.getString("govNotify.caseTable")
-
-  def caseObjectFromEmail(email :Email) :IO[Either[GovNotifyError, Option[MongoDBObject]]] = {
-    email.caseId match {
-      case Some(caseId) => IO.blocking(Try(
-          appContext.mongoDB(caseTable).findOne(MongoDBObject("_id" -> new ObjectId(caseId)))
-        ).toEither match {
-          case Left(exc) =>
-            appContext.updateAppStatus(_.recordDatabaseError(exc.getMessage))
-            Left(GovNotifyError(s"Database error looking up case from email: ${exc.getMessage()}"))
-          case Right(maybeObj) =>
-            appContext.updateAppStatus(_.markDatabaseOk)
-            Right(maybeObj.map(new MongoDBObject(_)))
-          }
-        )
-      case None => IO.delay(Right(None))
-    }
-  }
-
-  def parentObjectFromCase(caseObj :MongoDBObject) :IO[Either[GovNotifyError, Option[MongoDBObject]]] = {
-    extractDBField(caseObj, "latestApplication.parentRegisteredTravellerNumber") match {
-      case Some(parentRT) => IO.blocking(Try(
-          appContext.mongoDB(caseTable).findOne(MongoDBObject("registeredTravellerNumber" -> parentRT.stringValue()))
-        ).toEither
-          .map(_.map(new MongoDBObject(_)))
-          .left.map(exc => GovNotifyError(s"Database error looking up parent case from case: ${exc.getMessage()}"))
-        )
-
-      case None => IO.delay(Right(None))
-    }
-  }
-}
+//class GovNotifyMongoWrapper(implicit appContext :AppContext) extends StrictLogging {
+//  import uk.gov.homeoffice.rtemailer.Util._
+//
+//  lazy val caseTable :String = appContext.config.getString("govNotify.caseTable")
+//
+//  def caseObjectFromEmail(email :Email) :IO[Either[GovNotifyError, Option[MongoDBObject]]] = {
+//    email.caseId match {
+//      case Some(caseId) => IO.blocking(Try(
+//          appContext.mongoDB(caseTable).findOne(MongoDBObject("_id" -> new ObjectId(caseId)))
+//        ).toEither match {
+//          case Left(exc) =>
+//            appContext.updateAppStatus(_.recordDatabaseError(exc.getMessage))
+//            Left(GovNotifyError(s"Database error looking up case from email: ${exc.getMessage()}"))
+//          case Right(maybeObj) =>
+//            appContext.updateAppStatus(_.markDatabaseOk)
+//            Right(maybeObj.map(new MongoDBObject(_)))
+//          }
+//        )
+//      case None => IO.delay(Right(None))
+//    }
+//  }
+//
+//  def parentObjectFromCase(caseObj :MongoDBObject) :IO[Either[GovNotifyError, Option[MongoDBObject]]] = {
+//    extractDBField(caseObj, "latestApplication.parentRegisteredTravellerNumber") match {
+//      case Some(parentRT) => IO.blocking(Try(
+//          appContext.mongoDB(caseTable).findOne(MongoDBObject("registeredTravellerNumber" -> parentRT.stringValue()))
+//        ).toEither
+//          .map(_.map(new MongoDBObject(_)))
+//          .left.map(exc => GovNotifyError(s"Database error looking up parent case from case: ${exc.getMessage()}"))
+//        )
+//
+//      case None => IO.delay(Right(None))
+//    }
+//  }
+//}

@@ -2,13 +2,13 @@ package uk.gov.homeoffice.rtemailer.model
 
 import org.joda.time.DateTime
 import com.typesafe.config.Config
-import com.mongodb.casbah.MongoDB
+import uk.gov.homeoffice.rtemailer.database.Database
 import github.gphat.censorinus._
 
 case class AppContext(
   nowF :() => DateTime,
   config :Config,
-  mongoDB :MongoDB,
+  database :Database,
   statsDClient :Client
 ) {
   def updateAppStatus(updateFunction :AppStatus => AppStatus) :Unit = {
