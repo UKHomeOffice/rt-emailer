@@ -1,6 +1,5 @@
 package uk.gov.homeoffice.rtemailer.database
 
-import uk.gov.homeoffice.rtemailer.Util
 import uk.gov.homeoffice.rtemailer.model._
 import uk.gov.homeoffice.domain.core.email.{Email, EmailRepository}
 import uk.gov.homeoffice.domain.core.email.EmailStatus._
@@ -17,7 +16,6 @@ import com.mongodb.casbah.MongoDB
 import com.mongodb.casbah.commons.MongoDBObject
 import org.bson.types.ObjectId
 import scala.util.Try
-//import scala.collection.JavaConverters._
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
 
@@ -50,23 +48,6 @@ class LegacyMongoDatabase(config :Config) extends Database with StrictLogging {
   
   def obtainLock() :IO[Lock] = { IO.delay(processLockRepository.obtainLock(lockName, host).getOrElse(throw new Exception(s"Unable to aquire lock"))) }
   def releaseLock(lock :Lock) :IO[Unit] = { IO.delay(processLockRepository.releaseLock(lock)) }
-
-  //def createLockResource() :Resource[IO, GenericLockHandle] = {
-
-  //  def obtainLockAndMapToGeneric() :IO[GenericLockHandle] =  {
-  //    processLockRepository.obtainLock(lockName, host) match {
-  //      case None => throw new Exception(s"Unable to aquire lock")
-  //      case Some(mongoLock) => IO(Left(mongoLock))
-  //    }
-  //  }
-
-  //  def releaseGenericLock(lock :GenericLockHandle) :IO[Unit] = {
-  //    IO.delay { val _ = processLockRepository.releaseLock(lock.left.get) }
-  //  }
-
-  //  Resource.make(obtainLockAndMapToGeneric)(releaseGenericLock)
-
-  //}
 
   def getWaitingEmails() :fs2.Stream[IO, Email] = {
     val emailList :List[Email] = emailRepository.findByStatus(STATUS_WAITING)

@@ -1,7 +1,7 @@
 package uk.gov.homeoffice.rtemailer.database
 
 import uk.gov.homeoffice.rtemailer.model._
-import uk.gov.homeoffice.domain.core.email.{Email, EmailRepository}
+import uk.gov.homeoffice.domain.core.email.Email
 import uk.gov.homeoffice.domain.core.email.EmailStatus._
 import uk.gov.homeoffice.rtemailer.model._
 import com.mongodb.casbah.commons.{MongoDBObject, MongoDBList}
@@ -19,11 +19,9 @@ import cats.effect.kernel._
 import skunk._
 import skunk.implicits._
 import skunk.codec.all._
-import skunk.data.Completion
 import skunk.circe.codec.json.jsonb
 
 import natchez.Trace.Implicits.noop
-import cats.effect.unsafe.implicits._
 import cats.effect.std.Console
 
 import com.typesafe.config.Config
@@ -69,7 +67,7 @@ class PostgresDatabase(config :Config) extends Database with StrictLogging {
           builder += (key -> MongoDBList(mongoItems :_*))
         }
       case j if j.isObject =>
-        j.asObject.foreach { jsObj =>
+        j.asObject.foreach { _ =>
           val mongoObj = jsonToMongo(j)
           builder += (key -> mongoObj)
         }
@@ -140,7 +138,7 @@ class PostgresDatabase(config :Config) extends Database with StrictLogging {
         updateStatusNoContent(email.emailId, STATUS_EMAIL_ADDRESS_ERROR)
           .map { _ => ea }
 
-      case u @ unknown =>
+      case unknown =>
         logger.error(s"Unexpected Error class reported: $unknown. Passing through as EmailAddressError")
         updateStatusNoContent(email.emailId, unknown.toString)
           .map { _ => EmailAddressError(unknown.toString) }
@@ -170,10 +168,10 @@ class PostgresDatabase(config :Config) extends Database with StrictLogging {
       }
       result.attempt.map {
         case Left(throwable) =>
-          logger.error(s"Got error: $throwable")
+          logger.error(s"UpdateStatusNoContent returned error: $throwable")
           throw throwable
         case Right(completion) =>
-          logger.info(s"Got back: $completion from ${updateCommand.sql}")
+          logger.info(s"Email Status updated. Returned $completion from ${updateCommand.sql}")
           newStatus
       }
     }

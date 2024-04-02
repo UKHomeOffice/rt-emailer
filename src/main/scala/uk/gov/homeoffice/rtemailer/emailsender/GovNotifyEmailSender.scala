@@ -6,7 +6,6 @@ import uk.gov.homeoffice.domain.core.email.Email
 import uk.gov.homeoffice.domain.core.email.EmailStatus._
 import com.typesafe.scalalogging.StrictLogging
 import com.mongodb.casbah.commons.MongoDBObject
-import org.bson.types.ObjectId
 import scala.collection.JavaConverters._
 import scala.util.Try
 import scala.concurrent.duration.Duration
@@ -34,7 +33,6 @@ class GovNotifyEmailSender(implicit appContext :AppContext) extends StrictLoggin
   import uk.gov.homeoffice.rtemailer.Util._
 
   lazy val notifyClientWrapper = new GovNotifyClientWrapper()
-  //lazy val mongoWrapper = new GovNotifyMongoWrapper()
 
   // If GovNotify explodes, don't supress and fallback to legacy SMTP solution.
   // Queue emails until a developer investigates.
@@ -246,38 +244,3 @@ class GovNotifyEmailSender(implicit appContext :AppContext) extends StrictLoggin
   }
 }
 
-//class GovNotifyMongoWrapper(implicit appContext :AppContext) extends StrictLogging {
-//  import uk.gov.homeoffice.rtemailer.Util._
-//
-//  lazy val caseTable :String = appContext.config.getString("govNotify.caseTable")
-//
-//  def caseObjectFromEmail(email :Email) :IO[Either[GovNotifyError, Option[MongoDBObject]]] = {
-//    email.caseId match {
-//      case Some(caseId) => IO.blocking(Try(
-//          appContext.mongoDB(caseTable).findOne(MongoDBObject("_id" -> new ObjectId(caseId)))
-//        ).toEither match {
-//          case Left(exc) =>
-//            appContext.updateAppStatus(_.recordDatabaseError(exc.getMessage))
-//            Left(GovNotifyError(s"Database error looking up case from email: ${exc.getMessage()}"))
-//          case Right(maybeObj) =>
-//            appContext.updateAppStatus(_.markDatabaseOk)
-//            Right(maybeObj.map(new MongoDBObject(_)))
-//          }
-//        )
-//      case None => IO.delay(Right(None))
-//    }
-//  }
-//
-//  def parentObjectFromCase(caseObj :MongoDBObject) :IO[Either[GovNotifyError, Option[MongoDBObject]]] = {
-//    extractDBField(caseObj, "latestApplication.parentRegisteredTravellerNumber") match {
-//      case Some(parentRT) => IO.blocking(Try(
-//          appContext.mongoDB(caseTable).findOne(MongoDBObject("registeredTravellerNumber" -> parentRT.stringValue()))
-//        ).toEither
-//          .map(_.map(new MongoDBObject(_)))
-//          .left.map(exc => GovNotifyError(s"Database error looking up parent case from case: ${exc.getMessage()}"))
-//        )
-//
-//      case None => IO.delay(Right(None))
-//    }
-//  }
-//}

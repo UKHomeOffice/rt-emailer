@@ -1,7 +1,6 @@
 package uk.gov.homeoffice.rtemailer.database
 
 import cats.effect.IO
-import cats.effect.kernel.Resource
 import com.typesafe.config.Config
 import uk.gov.homeoffice.domain.core.email.Email
 import uk.gov.homeoffice.domain.core.email.EmailStatus._

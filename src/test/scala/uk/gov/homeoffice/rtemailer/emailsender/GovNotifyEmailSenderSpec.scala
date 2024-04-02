@@ -190,7 +190,6 @@ class govNotifyEmailSenderSpec extends CatsEffectSuite {
 
   val govNotifyEmailSender = new GovNotifyEmailSender()(testAppContext.copy(database=fakeDatabase)) {
     override lazy val notifyClientWrapper = fakeNotifyWrapper
-    //override lazy val mongoWrapper = fakeMongoWrapper
   }
 
   test("Use Gov Notify if email type matches the name of a template") {

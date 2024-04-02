@@ -4,14 +4,11 @@ import cats.effect.IO
 import com.comcast.ip4s._
 import org.http4s.ember.server.EmberServerBuilder
 import com.typesafe.scalalogging.StrictLogging
-import uk.gov.homeoffice.domain.core.email.{Email, EmailRepository}
+import uk.gov.homeoffice.domain.core.email.Email
 import uk.gov.homeoffice.domain.core.email.EmailStatus._
-import uk.gov.homeoffice.domain.core.lock.ProcessLockRepository
-import cjp.emailer.Emailer
-import java.net.InetAddress
 import scala.concurrent.duration.Duration
 import uk.gov.homeoffice.rtemailer.emailsender._
-import uk.gov.homeoffice.rtemailer.model.{AppContext, EmailMongo}
+import uk.gov.homeoffice.rtemailer.model.AppContext
 import cats.effect.kernel.Resource
 
 object RtemailerServer extends StrictLogging {
@@ -54,13 +51,13 @@ object RtemailerServer extends StrictLogging {
         .toList
         .map { listOfResults =>
 
-          def summerise(emailSentResult :EmailSentResult) :String = emailSentResult match {
+          def categorise(emailSentResult :EmailSentResult) :String = emailSentResult match {
             case Sent(_, _) => "SENT"
             case _ => "NOT SENT"
           }
 
           val countOfResults = listOfResults
-            .map(summerise)
+            .map(categorise)
             .groupBy(_.toString)
             .mapValues(_.length)
             .toList
