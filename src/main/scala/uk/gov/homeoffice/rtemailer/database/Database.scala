@@ -25,5 +25,10 @@ trait Database {
 object Database {
 
   def make(config :Config) :Database =
-    new LegacyMongoDatabase(config)
+    config.getString("db.backend") match {
+      case "LegacyMongoDatabase" => new LegacyMongoDatabase(config)
+      case "PostgresDatabase" => new PostgresDatabase(config)
+      case unknown => throw new Exception(s"Config db.backend must be LegacyMongoDatabase or PostgresDatabase. Not $unknown")
+    }
+
 }

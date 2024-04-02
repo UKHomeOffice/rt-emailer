@@ -53,14 +53,24 @@ object RtemailerServer extends StrictLogging {
         .compile
         .toList
         .map { listOfResults =>
+
+          def summerise(emailSentResult :EmailSentResult) :String = emailSentResult match {
+            case Sent(_, _) => "SENT"
+            case _ => "NOT SENT"
+          }
+
           val countOfResults = listOfResults
+            .map(summerise)
             .groupBy(_.toString)
             .mapValues(_.length)
             .toList
             .sortBy(_._1)
             .map { case (k, v) => s"$k = $v"  }.mkString(",")
 
-          logger.info(s"Summary: $countOfResults")
+          if (countOfResults.nonEmpty)
+            logger.info(s"Summary: $countOfResults")
+          else
+            logger.info(s"Summary: There was nothing to do")
         }
     }
   }
