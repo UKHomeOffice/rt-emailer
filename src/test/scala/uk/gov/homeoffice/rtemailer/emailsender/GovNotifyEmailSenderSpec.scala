@@ -18,7 +18,7 @@ import uk.gov.service.notify.{Template, TemplatePreview, SendEmailResponse}
 
 class govNotifyEmailSenderSpec extends CatsEffectSuite {
 
-  var testAppContext = new AppContext(
+  val testAppContext = AppContext(
     nowF = () => DateTime.parse("2024-01-01T01:02:03"),
     ConfigFactory.parseString("""
       app {

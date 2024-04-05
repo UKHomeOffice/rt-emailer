@@ -1,7 +1,6 @@
 package uk.gov.homeoffice.rtemailer.database
 
 import munit.CatsEffectSuite
-import cats.effect._
 import uk.gov.homeoffice.domain.core.email.Email
 import uk.gov.homeoffice.rtemailer.model._
 import io.circe._
