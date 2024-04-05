@@ -4,14 +4,12 @@ import cats.effect.IO
 import com.comcast.ip4s._
 import org.http4s.ember.server.EmberServerBuilder
 import com.typesafe.scalalogging.StrictLogging
-import uk.gov.homeoffice.domain.core.email.EmailRepository
+import uk.gov.homeoffice.domain.core.email.Email
 import uk.gov.homeoffice.domain.core.email.EmailStatus._
-import uk.gov.homeoffice.domain.core.lock.ProcessLockRepository
-import cjp.emailer.Emailer
-import java.net.InetAddress
 import scala.concurrent.duration.Duration
 import uk.gov.homeoffice.rtemailer.emailsender._
-import uk.gov.homeoffice.rtemailer.model.{AppContext, EmailMongo}
+import uk.gov.homeoffice.rtemailer.model.AppContext
+import cats.effect.kernel.Resource
 
 object RtemailerServer extends StrictLogging {
 
@@ -39,38 +37,38 @@ object RtemailerServer extends StrictLogging {
   }
 
   def sendEmails()(implicit appContext :AppContext) :IO[Unit] = {
+    val database = appContext.database
 
-    val processLockRepository = new ProcessLockRepository with EmailMongo
-    IO.blocking(processLockRepository.obtainLock("rt-emailer", InetAddress.getLocalHost.getHostName)).flatMap {
-      case Some(lock) =>
-        logger.info(s"Lock aquired. Ready to send emails")
-        val emailRepository = new EmailRepository with EmailMongo
-        val emailSender = new EmailSender
-        val emailer = new Emailer(emailRepository, emailSender.sendMessage)
-        appContext.updateAppStatus(_.markDatabaseOk)
-        emailer.sendEmails().flatMap { emailResults =>
-          processLockRepository.releaseLock(lock)
-          emailResults match {
-            case Right(emailListWithStatus) =>
-              logger.info(s"Attempted to send ${emailListWithStatus.length} emails")
-              emailListWithStatus.zipWithIndex.foreach {
-                case ((email, Sent(_, _)), idx) =>
-                  logger.info(s"Email $idx: to=${email.recipient}, subject=${email.subject}, caseId=${email.caseId.getOrElse("")}, newStatus=Sent")
-                case ((email, newStatus), idx) =>
-                  logger.info(s"Email $idx: to=${email.recipient}, subject=${email.subject}, caseId=${email.caseId.getOrElse("")}, newStatus=${newStatus}")
-              }
-              val (emailsSent, emailsNotSent) = emailListWithStatus.map(_._2).partition { case Sent(_, _) => true; case _ => false }
-              appContext.updateAppStatus(_.recordEmailsSent(emailsSent.length, emailsNotSent.length))
-              IO.delay(logger.info(s"Finished sending emails"))
-            case Left(error) =>
-              appContext.updateAppStatus(_.recordDatabaseError(error))
-              IO.delay(logger.error(s"Error. System unhealthy: $error"))
+    val processLock = Resource.make(database.obtainLock)(database.releaseLock)
+    val emailer = new EmailSender()
+
+    processLock.use { _ =>
+      database.getWaitingEmails()
+        .evalTap { email :Email => IO.delay(logger.info(s"Sending email to ${email.recipient}")) }
+        .evalMap { case email => emailer.sendMessage(email).map { emailSentResult => (email, emailSentResult) } }
+        .evalMap { case (email, emailSentResult) => database.updateStatus(email, emailSentResult) }
+        .compile
+        .toList
+        .map { listOfResults =>
+
+          def categorise(emailSentResult :EmailSentResult) :String = emailSentResult match {
+            case Sent(_, _) => "SENT"
+            case _ => "NOT SENT"
           }
+
+          val countOfResults = listOfResults
+            .map(categorise)
+            .groupBy(_.toString)
+            .mapValues(_.length)
+            .toList
+            .sortBy(_._1)
+            .map { case (k, v) => s"$k = $v"  }.mkString(",")
+
+          if (countOfResults.nonEmpty)
+            logger.info(s"Summary: $countOfResults")
+          else
+            logger.info(s"Summary: There was nothing to do")
         }
-      case None =>
-        /* This isn't an error but it may be useful to shout loudly about why things are working */
-        appContext.updateAppStatus(_.recordDatabaseError("lock not available"))
-        IO.delay(logger.info(s"Lock not available"))
     }
   }
 

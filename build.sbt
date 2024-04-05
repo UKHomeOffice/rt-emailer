@@ -38,7 +38,9 @@ lazy val root = (project in file("."))
       "com.github.eikek" %% "emil-javamail" % "0.15.0",
       "uk.gov.service.notify" % "notifications-java-client" % "3.19.2-RELEASE",
       "com.outr" %% "hasher" % "1.2.2",
-      "com.github.gphat" %% "censorinus" % "2.1.16"
+      "com.github.gphat" %% "censorinus" % "2.1.16",
+      "org.tpolecat" %% "skunk-core" % "0.6.3",
+      "org.tpolecat" %% "skunk-circe" % "0.6.3"
     ),
     addCompilerPlugin("org.typelevel" %% "kind-projector"     % "0.13.2" cross CrossVersion.full),
     addCompilerPlugin("com.olegpy"    %% "better-monadic-for" % "0.3.1"),

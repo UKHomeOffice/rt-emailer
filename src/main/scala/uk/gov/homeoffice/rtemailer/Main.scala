@@ -8,10 +8,9 @@ import scala.util.Try
 import scala.io.Source
 import org.joda.time.DateTime
 import org.joda.time.format.DateTimeFormat
-import com.mongodb.casbah.MongoClientURI
 import scala.concurrent.duration._
-import uk.gov.homeoffice.mongo.casbah.Mongo
 import uk.gov.homeoffice.rtemailer.model.{AppStatus, AppContext}
+import uk.gov.homeoffice.rtemailer.database._
 import github.gphat.censorinus._
 import github.gphat.censorinus.statsd.Encoder
 
@@ -35,22 +34,8 @@ object Main extends IOApp.Simple with StrictLogging {
     config
   }
 
-  val dbHost = config.getString("db.host")
-  val dbName = config.getString("db.name")
-  val dbUser = config.getString("db.user")
-  val dbPassword = config.getString("db.password")
-  val dbParams = config.getString("db.params")
-  val mongoConnectionString = dbUser.isEmpty match {
-    case false =>
-      logger.info(s"mongo connection string: mongodb://$dbUser:*******@$dbHost/$dbName?$dbParams")
-      s"mongodb://$dbUser:$dbPassword@$dbHost/$dbName?$dbParams"
-    case true =>
-      val cs = s"mongodb://$dbHost/$dbName"
-      logger.info(s"mongo connection string: $cs")
-      cs
-  }
-
-  val mongoDB = Mongo.mongoDB(MongoClientURI(mongoConnectionString))
+  val database = Database.make(config)
+  logger.info(s"Database: ${database.name}")
 
   val statsDClient = new Client(
     sender = new UDPSender(
@@ -92,7 +77,7 @@ object Main extends IOApp.Simple with StrictLogging {
   var appContext = AppContext(
     DateTime.now,
     config,
-    mongoDB,
+    database,
     statsDClient
   )
 

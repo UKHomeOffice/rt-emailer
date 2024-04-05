@@ -5,10 +5,12 @@ import cats.effect._
 import org.joda.time.DateTime
 import com.typesafe.config.ConfigFactory
 import uk.gov.homeoffice.rtemailer.model.AppContext
+import uk.gov.homeoffice.rtemailer.database.Database
 import org.bson.types.ObjectId
 
 import com.mongodb.casbah.commons.MongoDBObject
 import uk.gov.homeoffice.domain.core.email.Email
+import uk.gov.homeoffice.domain.core.lock._
 import uk.gov.homeoffice.domain.core.email.EmailStatus._
 import uk.gov.homeoffice.rtemailer.model._
 import uk.gov.homeoffice.rtemailer.govnotify._
@@ -16,7 +18,7 @@ import uk.gov.service.notify.{Template, TemplatePreview, SendEmailResponse}
 
 class govNotifyEmailSenderSpec extends CatsEffectSuite {
 
-  val testAppContext = new AppContext(
+  val testAppContext = AppContext(
     nowF = () => DateTime.parse("2024-01-01T01:02:03"),
     ConfigFactory.parseString("""
       app {
@@ -139,8 +141,13 @@ class govNotifyEmailSenderSpec extends CatsEffectSuite {
   val parentCaseId = new ObjectId().toHexString()
   val defaultCaseId = new ObjectId().toHexString()
 
-  val fakeMongoWrapper = new GovNotifyMongoWrapper()(testAppContext) {
-    override def caseObjectFromEmail(email :Email) :IO[Either[GovNotifyError, Option[MongoDBObject]]] = {
+  val fakeDatabase = new Database {
+    override def name() = "FakeDB"
+    override def obtainLock() :IO[Lock] = ???
+    override def releaseLock(lock :Lock) :IO[Unit] = ???
+    override def getWaitingEmails(): fs2.Stream[cats.effect.IO,uk.gov.homeoffice.domain.core.email.Email] = fs2.Stream.empty
+    override def updateStatus(email :Email, newStatus :EmailSentResult) :IO[EmailSentResult] = ???
+    override def caseObjectFromEmail(email :Email)(implicit appContext :AppContext) :IO[Either[GovNotifyError, Option[MongoDBObject]]] = {
       email.caseId match {
         case None => IO.delay(Right(None))
         case Some(x) if x == parentCaseId =>
@@ -167,7 +174,7 @@ class govNotifyEmailSenderSpec extends CatsEffectSuite {
       }
     }
 
-    override def parentObjectFromCase(caseObj :MongoDBObject) :IO[Either[GovNotifyError, Option[MongoDBObject]]] = {
+    override def parentObjectFromCaseObject(caseObj :MongoDBObject)(implicit appContext :AppContext) :IO[Either[GovNotifyError, Option[MongoDBObject]]] = {
       // pretend scenario
       caseObj.getAs[String]("latestApplication.parentRegisteredTravellerNumber") match {
         case Some(rtn) =>
@@ -181,9 +188,8 @@ class govNotifyEmailSenderSpec extends CatsEffectSuite {
     }
   }
 
-  val govNotifyEmailSender = new GovNotifyEmailSender()(testAppContext) {
+  val govNotifyEmailSender = new GovNotifyEmailSender()(testAppContext.copy(database=fakeDatabase)) {
     override lazy val notifyClientWrapper = fakeNotifyWrapper
-    override lazy val mongoWrapper = fakeMongoWrapper
   }
 
   test("Use Gov Notify if email type matches the name of a template") {
