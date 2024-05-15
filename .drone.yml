@@ -57,6 +57,26 @@ steps:
         - push
         - tag
 
+# https://docs.acp.homeoffice.gov.uk/how-to/security/trivy
+- name: vulnerability-scan
+  pull: Always
+  image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/trivy/client:latest
+  resources:
+    limits:
+      cpu: 1000
+      memory: 1024Mi
+  environment:
+    FAIL_ON_DETECTION: false
+    IMAGE_NAME: rt-emailer:${DRONE_COMMIT_SHA}
+    SEVERITY: MEDIUM,HIGH,CRITICAL
+  when:
+    branch:
+    - master
+    event:
+    - push
+  depends_on:
+    - build_image
+
   - name: push_build_image
     image: plugins/ecr
     settings:
