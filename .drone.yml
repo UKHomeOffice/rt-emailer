@@ -67,7 +67,7 @@ steps:
         memory: 1024Mi
     environment:
       FAIL_ON_DETECTION: false
-      IMAGE_NAME: rt-emailer:${DRONE_COMMIT_SHA}
+      IMAGE_NAME: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/rtge/rt-emailer:${DRONE_COMMIT_SHA}
       SEVERITY: MEDIUM,HIGH,CRITICAL
     when:
       branch:
