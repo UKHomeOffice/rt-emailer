@@ -13,7 +13,7 @@ in the database, dealing with timeouts, logging network interactions etc.
 The rt-emailer app can do all of these things and comes with a very powerful and generic templating language.
 One that had been successfully adopted and understood by non-technical people in the HomeOffice on appropriate
 teams. By deploying rt-emailer instead of building a gov notify client directly into your service, you reduce
-complexity of the problem to just putting a document into a mongo collection.
+complexity of the problem to just putting a document into a Mongo collection.
 
 Once rt-emailer is configured and deployed to your solution, and connected to your database you would
 send an email by inserting a document into your mongo db collection like this:
