@@ -8,7 +8,8 @@ import uk.gov.homeoffice.rtemailer.model.AppContext
 import uk.gov.homeoffice.rtemailer.database.Database
 import org.bson.types.ObjectId
 
-import com.mongodb.casbah.commons.MongoDBObject
+import uk.gov.homeoffice.mongo.casbah.MongoDBObject
+import uk.gov.homeoffice.mongo.casbah.MongoDBList
 import uk.gov.homeoffice.domain.core.email.Email
 import uk.gov.homeoffice.domain.core.lock._
 import uk.gov.homeoffice.domain.core.email.EmailStatus._
@@ -152,25 +153,25 @@ class govNotifyEmailSenderSpec extends CatsEffectSuite {
         case None => IO.delay(Right(None))
         case Some(x) if x == parentCaseId =>
           // part of the end-to-end scenario
-          IO.delay(Right(Some(new MongoDBObject(MongoDBObject(
+          IO.delay(Right(Some(MongoDBObject(
             "name" -> "phillip",
             "dateOfBirth" -> DateTime.parse("2020-01-02T11:11:11Z"),
             "boolField" -> "True", // test demostrates how to smooth a string like this into "yes" manually
             "latestApplication" -> MongoDBObject("parentRegisteredTravellerNumber" -> "RT123")
-          )))))
-        case Some(x) if x == simpleCaseId => IO.delay(Right(Some(new MongoDBObject(MongoDBObject(
+          ))))
+        case Some(x) if x == simpleCaseId => IO.delay(Right(Some(MongoDBObject(
           "name" -> "phillip",
           "details" -> MongoDBObject("age" -> 17)
-        )))))
+        ))))
         case Some(_) =>
-          IO.delay(Right(Some(new MongoDBObject(MongoDBObject(
+          IO.delay(Right(Some(MongoDBObject(
             "name" -> "phillip",
             "details" -> MongoDBObject(
               "age" -> "17",
               "bool" -> true,
               "date" -> DateTime.parse("2023-02-01T13:44:55")
             )
-          )))))
+          ))))
       }
     }
 
@@ -178,11 +179,11 @@ class govNotifyEmailSenderSpec extends CatsEffectSuite {
       // pretend scenario
       caseObj.getAs[String]("latestApplication.parentRegisteredTravellerNumber") match {
         case Some(rtn) =>
-          IO.delay(Right(Some(new MongoDBObject(MongoDBObject(
+          IO.delay(Right(Some(MongoDBObject(
             "registeredTravellerNumber" -> rtn,
             "name" -> "mary",
             "details" -> MongoDBObject("age" -> 66)
-          )))))
+          ))))
         case None => IO.delay(Right(None))
       }
     }
@@ -242,11 +243,11 @@ class govNotifyEmailSenderSpec extends CatsEffectSuite {
   }
 
   test("extracting parameters from a parent object works (in isolation)") {
-    val testCase = new MongoDBObject(MongoDBObject(
+    val testCase = MongoDBObject(
       "latestApplication" -> MongoDBObject("parentRegisteredTravellerNumber" -> "RTAA122"),
       "name" -> "phillip",
       "details" -> MongoDBObject("age" -> 17)
-    ))
+    )
 
     val testPersonalisations = List("case:name", "parent:name", "parent:details.age")
 
