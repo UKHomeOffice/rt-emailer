@@ -5,7 +5,7 @@ import cats.effect._
 import uk.gov.homeoffice.domain.core.email.Email
 import uk.gov.homeoffice.domain.core.email.EmailStatus._
 import com.typesafe.scalalogging.StrictLogging
-import com.mongodb.casbah.commons.MongoDBObject
+import uk.gov.homeoffice.mongo.casbah.MongoDBObject
 import scala.collection.JavaConverters._
 import scala.util.Try
 import scala.concurrent.duration.Duration
@@ -137,14 +137,16 @@ class GovNotifyEmailSender(implicit appContext :AppContext) extends StrictLoggin
 
   def buildCasePersonalisations(personalisationsRequired :List[String], email :Email, templateName :String) :IO[Either[GovNotifyError, (Map[String, String], Option[MongoDBObject])]] = {
     appContext.database.caseObjectFromEmail(email).map {
-      case Right(Some(caseObj)) => buildObjectPersonalisations(personalisationsRequired, caseObj, templateName, "case").map { m => (m, Some(caseObj)) }
-      case Right(None) => Right((Map.empty, None))
+      case Right(Some(caseObj)) =>
+        buildObjectPersonalisations(personalisationsRequired, caseObj, templateName, "case").map { m => (m, Some(caseObj)) }
+      case Right(None) =>
+        Right((Map.empty, None))
       case Left(govNotifyError) => Left(govNotifyError)
     }
   }
 
   def buildEmailPersonalisations(personalisationsRequired :List[String], email :Email, templateName :String) :Either[GovNotifyError, Map[String, String]] = {
-    buildObjectPersonalisations(personalisationsRequired, new MongoDBObject(email.toDBObject), templateName, "email")
+    buildObjectPersonalisations(personalisationsRequired, email.toDBObject.mongoDBObject, templateName, "email")
   }
 
   def buildParentPersonalisations(personalisationsRequired :List[String], maybeCaseObj :Option[MongoDBObject], templateName :String) :IO[Either[GovNotifyError, Map[String, String]]] = {

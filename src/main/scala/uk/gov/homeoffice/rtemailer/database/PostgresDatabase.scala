@@ -4,7 +4,7 @@ import uk.gov.homeoffice.rtemailer.model._
 import uk.gov.homeoffice.domain.core.email.Email
 import uk.gov.homeoffice.domain.core.email.EmailStatus._
 import uk.gov.homeoffice.rtemailer.model._
-import com.mongodb.casbah.commons.{MongoDBObject, MongoDBList}
+import uk.gov.homeoffice.mongo.casbah.{MongoDBObject, MongoDBList}
 import com.mongodb.DBObject
 import org.bson.types.ObjectId
 
@@ -55,7 +55,7 @@ class PostgresDatabase(config :Config) extends Database with StrictLogging {
    * tactical and quick implementation, the Postgres library returns a Mongo object. This is known piece of
    * tech debt and I have created DPSPS-1419 to come back and do this work correctly.
    */
-  def jsonToMongo(json :Json) :DBObject = {
+  def jsonToMongo(json :Json) :MongoDBObject = {
     val builder = MongoDBObject.newBuilder
 
     val jsonFields :List[(String, Json)] = json.asObject.map(_.toList).getOrElse(List.empty)

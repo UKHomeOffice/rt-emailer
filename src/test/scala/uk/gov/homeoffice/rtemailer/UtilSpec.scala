@@ -2,8 +2,8 @@ package uk.gov.homeoffice.rtemailer
 
 import munit.CatsEffectSuite
 import java.util.Optional
-import com.mongodb.casbah.commons.MongoDBObject
-import com.mongodb.casbah.commons.MongoDBList
+import uk.gov.homeoffice.mongo.casbah.MongoDBObject
+import uk.gov.homeoffice.mongo.casbah.MongoDBList
 
 import uk.gov.homeoffice.rtemailer.model._
 
@@ -24,20 +24,20 @@ class UtilSpec extends CatsEffectSuite {
 
   test("pulling fields from a Mongo Object into our type system works") {
 
-    val testObj = new MongoDBObject(MongoDBObject(
+    val testObj = MongoDBObject(
       "string" -> "abc",
       "int" -> 123,
       "list" -> MongoDBList(List("x", "y", "z") :_*),
       "outer" -> MongoDBObject("inner" -> "inside"),
-      "dotted.doesn't.work" -> "6",
+      "dotted.also.works" -> "6",
       "bool" -> true
-    ))
+    )
 
     assertEquals(extractDBField(testObj, "string"), Some(TString("abc")))
     assertEquals(extractDBField(testObj, "int"), Some(TString("123")))
     assertEquals(extractDBField(testObj, "list"), Some(TList(List("x", "y", "z"))))
     assertEquals(extractDBField(testObj, "outer.inner"), Some(TString("inside")))
-    assertEquals(extractDBField(testObj, "dotted.doesn't.work"), None)
+    assertEquals(extractDBField(testObj, "dotted.also.works"), Some(TString("6")))
     assertEquals(extractDBField(testObj, "bool"), Some(TString("yes")))
     assertEquals(extractDBField(testObj, "missing"), None)
   }

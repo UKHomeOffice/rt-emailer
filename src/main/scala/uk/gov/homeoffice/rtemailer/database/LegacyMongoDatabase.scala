@@ -9,23 +9,28 @@ import uk.gov.homeoffice.rtemailer.Util._
 import java.net.InetAddress
 
 import uk.gov.homeoffice.domain.core.lock._
-import com.mongodb.casbah.MongoClientURI
-import uk.gov.homeoffice.mongo.casbah.Mongo
-import com.mongodb.casbah.MongoDB
+import uk.gov.homeoffice.mongo._
+import uk.gov.homeoffice.mongo.model._
+import uk.gov.homeoffice.mongo.repository._
+import uk.gov.homeoffice.mongo.casbah._
+import uk.gov.homeoffice.mongo.casbah.syntax._
 
-import com.mongodb.casbah.commons.MongoDBObject
+import org.mongodb.scala.bson.Document
 import org.bson.types.ObjectId
+
 import scala.util.Try
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
 
 class LegacyMongoDatabase(config :Config) extends Database with StrictLogging {
 
-  val dbHost = config.getString("db.host")
-  val dbName = config.getString("db.name")
-  val dbUser = config.getString("db.user")
-  val dbPassword = config.getString("db.password")
-  val dbParams = config.getString("db.params")
+  val dbHost = config.getString("db.mongo.host")
+  val dbName = config.getString("db.mongo.name")
+  val dbUser = config.getString("db.mongo.user")
+  val dbPassword = config.getString("db.mongo.password")
+  val dbParams = config.getString("db.mongo.params")
+  val dbSSL = config.getBoolean("db.mongo.ssl")
+
   val mongoConnectionString = dbUser.isEmpty match {
     case false =>
       logger.info(s"mongo connection string: mongodb://$dbUser:*******@$dbHost/$dbName?$dbParams")
@@ -36,15 +41,31 @@ class LegacyMongoDatabase(config :Config) extends Database with StrictLogging {
       cs
   }
 
-  val mongoDB_ = Mongo.mongoDB(MongoClientURI(mongoConnectionString))
+  val mongoConnection = MongoConnector.connect(
+    mongoConnectionString,
+    "rt-emailer",
+    dbSSL,
+    dbName
+  )
 
-  def name() = "Legacy Mongo Database"
+  def name() = "Mongo Database"
 
-  lazy val processLockRepository = new ProcessLockRepository with EmailMongo { override lazy val mongoDB :MongoDB = mongoDB_ }
+  def getCollection(collectionName :String) :MongoCasbahRepository =
+    new MongoCasbahRepository(
+      new MongoJsonRepository(
+        new MongoStreamRepository(
+          mongoConnection,
+          collectionName,
+          List("_id")
+        )
+      )
+    )
+
+  lazy val processLockRepository = new ProcessLockRepository(mongoConnection)
   lazy val host = InetAddress.getLocalHost.getHostName
   val lockName = "rt-emailer"
 
-  lazy val emailRepository = new EmailRepository with EmailMongo
+  lazy val emailRepository = new EmailRepository(mongoConnection)
   
   def obtainLock() :IO[Lock] = { IO.delay(processLockRepository.obtainLock(lockName, host).getOrElse(throw new Exception(s"Unable to aquire lock"))) }
   def releaseLock(lock :Lock) :IO[Unit] = { IO.delay(processLockRepository.releaseLock(lock)) }
@@ -100,13 +121,13 @@ class LegacyMongoDatabase(config :Config) extends Database with StrictLogging {
     lazy val caseTable :String = config.getString("govNotify.caseTable")
 
     email.caseId match {
-      case Some(caseId) => IO.blocking(Try(mongoDB_(caseTable).findOne(MongoDBObject("_id" -> new ObjectId(caseId)))).toEither match {
+      case Some(caseId) => IO.blocking(Try(getCollection(caseTable).findOne(MongoDBObject("_id" -> new ObjectId(caseId)))).toEither match {
           case Left(exc) =>
             appContext.updateAppStatus(_.recordDatabaseError(exc.getMessage))
             Left(GovNotifyError(s"Database error looking up case from email: ${exc.getMessage()}"))
           case Right(maybeObj) =>
             appContext.updateAppStatus(_.markDatabaseOk)
-            Right(maybeObj.map(new MongoDBObject(_)))
+            Right(maybeObj)
           }
         )
       case None => IO.delay(Right(None))
@@ -118,9 +139,8 @@ class LegacyMongoDatabase(config :Config) extends Database with StrictLogging {
 
     extractDBField(caseObj, "latestApplication.parentRegisteredTravellerNumber") match {
       case Some(parentRT) => IO.blocking(Try(
-        mongoDB_(caseTable).findOne(MongoDBObject("registeredTravellerNumber"-> parentRT.stringValue()))
+        getCollection(caseTable).findOne(MongoDBObject("registeredTravellerNumber"-> parentRT.stringValue()))
         ).toEither
-          .map(_.map(new MongoDBObject(_)))
           .left.map(exc => GovNotifyError(s"Database error looking up parent case from case: ${exc.getMessage()}"))
         )
 

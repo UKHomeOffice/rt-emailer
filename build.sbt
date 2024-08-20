@@ -19,7 +19,7 @@ lazy val root = (project in file("."))
     organization := "uk.gov.homeoffice",
     name := "rt-emailer",
     version := "2.0.1",
-    scalaVersion := "2.12.16",
+    scalaVersion := "2.13.14",
     libraryDependencies ++= Seq(
       "org.http4s"      %% "http4s-ember-server" % Http4sVersion,
       "org.http4s"      %% "http4s-ember-client" % Http4sVersion,
@@ -31,7 +31,7 @@ lazy val root = (project in file("."))
       "org.typelevel"   %% "munit-cats-effect-3" % MunitCatsEffectVersion % Test,
       "ch.qos.logback"  %  "logback-classic"     % LogbackVersion         % Runtime,
       "org.scalameta"   %% "svm-subs"            % "20.2.0",
-      "uk.gov.homeoffice" %% "rtp-email-lib"     % "3.4.33-gfb4271c",
+      "uk.gov.homeoffice" %% "rtp-email-lib"     % "3.4.35-gc9d0b71-DPSPS-50-MongoDriverUpgrade-U-SNAPSHOT",
       "com.typesafe"     % "config"              % "1.4.3",
       "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5",
       "com.github.eikek" %% "emil-common" % "0.15.0",
@@ -42,7 +42,7 @@ lazy val root = (project in file("."))
       "org.tpolecat" %% "skunk-core" % "0.6.3",
       "org.tpolecat" %% "skunk-circe" % "0.6.3"
     ),
-    addCompilerPlugin("org.typelevel" %% "kind-projector"     % "0.13.2" cross CrossVersion.full),
+    addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.13.3" cross CrossVersion.full),
     addCompilerPlugin("com.olegpy"    %% "better-monadic-for" % "0.3.1"),
     testFrameworks += new TestFramework("munit.Framework")
   )

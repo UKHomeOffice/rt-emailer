@@ -8,7 +8,7 @@ import com.typesafe.config.ConfigFactory
 import uk.gov.homeoffice.rtemailer.model.AppContext
 import uk.gov.service.notify.{Template, TemplateList, NotificationClient}
 import scala.collection.JavaConverters._
-import com.mongodb.casbah.commons.MongoDBObject
+import uk.gov.homeoffice.mongo.casbah.MongoDBObject
 import uk.gov.homeoffice.domain.core.email.Email
 import uk.gov.homeoffice.rtemailer.model._
 import uk.gov.service.notify.{Template, SendEmailResponse}
