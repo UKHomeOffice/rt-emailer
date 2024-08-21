@@ -9,7 +9,7 @@ import uk.gov.homeoffice.mongo.casbah.MongoDBObject
 import uk.gov.homeoffice.domain.core.lock.Lock
 
 trait Database {
-  def name() :String
+  val name :String
 
   def obtainLock() :IO[Lock]
   def releaseLock(lock :Lock) :IO[Unit]

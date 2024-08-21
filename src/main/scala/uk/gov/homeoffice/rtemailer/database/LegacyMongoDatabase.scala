@@ -48,7 +48,7 @@ class LegacyMongoDatabase(config :Config) extends Database with StrictLogging {
     dbName
   )
 
-  def name() = "Mongo Database"
+  val name = "Mongo Database"
 
   def getCollection(collectionName :String) :MongoCasbahRepository =
     new MongoCasbahRepository(

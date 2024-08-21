@@ -143,7 +143,7 @@ class govNotifyEmailSenderSpec extends CatsEffectSuite {
   val defaultCaseId = new ObjectId().toHexString()
 
   val fakeDatabase = new Database {
-    override def name() = "FakeDB"
+    override val name = "FakeDB"
     override def obtainLock() :IO[Lock] = ???
     override def releaseLock(lock :Lock) :IO[Unit] = ???
     override def getWaitingEmails(): fs2.Stream[cats.effect.IO,uk.gov.homeoffice.domain.core.email.Email] = fs2.Stream.empty

@@ -29,7 +29,7 @@ import com.typesafe.config.Config
 class PostgresDatabase(config :Config) extends Database with StrictLogging {
   implicit val consoleForIO: Console[IO] = Console.make[IO]
 
-  def name() = "Postgres Database"
+  val name = "Postgres Database"
 
   // These are effectively no-ops for Postgres as we plan to rely on kubernetes
   // enforcing only a single-instance running at a given time, rather than reimplementing
