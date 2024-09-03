@@ -61,7 +61,7 @@ class LegacyMongoDatabaseSpec extends CatsEffectSuite {
           rt_new_application_fee = 7000
         }
       }
-    """)
+    """).resolve()
 
     val legacyMongoDatabase = new LegacyMongoDatabase(config)
 
