@@ -117,12 +117,11 @@ class LegacyMongoDatabase(config :Config) extends Database with StrictLogging {
     lazy val caseTable :String = config.getString("govNotify.caseTable")
 
     extractDBField(caseObj, "latestApplication.parentRegisteredTravellerNumber") match {
-      case Some(parentRT) => IO.blocking(Try(
-        mongoDB_(caseTable).findOne(MongoDBObject("registeredTravellerNumber"-> parentRT.stringValue()))
-        ).toEither
-          .map(_.map(new MongoDBObject(_)))
-          .left.map(exc => GovNotifyError(s"Database error looking up parent case from case: ${exc.getMessage()}"))
-        )
+      case Some(parentRT) => IO.blocking { Try(
+        mongoDB_(caseTable).findOne(MongoDBObject("registeredTravellerNumber"-> parentRT.stringValue().right.get))).toEither
+          .map { _.map(new MongoDBObject(_)) }
+          .left.map(exc => GovNotifyError(s"Database error looking up parent case from case: ${exc.getMessage()}")
+        )}
 
       case None => IO.delay(Right(None))
     }
