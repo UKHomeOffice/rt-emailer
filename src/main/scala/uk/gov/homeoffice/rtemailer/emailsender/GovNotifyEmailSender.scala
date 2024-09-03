@@ -148,21 +148,24 @@ class GovNotifyEmailSender(implicit appContext :AppContext) extends StrictLoggin
   }
 
   def buildParentPersonalisations(personalisationsRequired :List[String], maybeCaseObj :Option[MongoDBObject], templateName :String) :IO[Either[GovNotifyError, Map[String, String]]] = {
-    maybeCaseObj match {
-      case Some(caseObj) =>
-        appContext.database.parentObjectFromCaseObject(caseObj)
-          .map {
-            case Right(Some(parentCaseObj)) => buildObjectPersonalisations(personalisationsRequired, parentCaseObj, templateName, "parent")
-            case Right(None) => Right(Map.empty)
-            case Left(err) =>
-              logger.warn(s"gov notify personalisation warning fetching parent: ${err}")
-              Left(err)
-          }
-      case None =>
-        IO.delay(Right(Map.empty))
+    /* save us some effort by skipping parent lookup if there are no "parent:" calls required. (This also makes logging less noisy) */
+    personalisationsRequired.exists(_.startsWith("parent:")) match {
+      case true =>
+        maybeCaseObj match {
+          case Some(caseObj) =>
+            appContext.database.parentObjectFromCaseObject(caseObj)
+              .map {
+                case Right(Some(parentCaseObj)) => buildObjectPersonalisations(personalisationsRequired, parentCaseObj, templateName, "parent")
+                case Right(None) => Right(Map.empty)
+                case Left(err) =>
+                  logger.warn(s"gov notify personalisation warning fetching parent: ${err}")
+                  Left(err)
+              }
+          case None => IO.delay(Right(Map.empty))
+        }
+      case false => IO.delay(Right(Map.empty))
     }
   }
-
 
   def getPersonalisationsRequired(template :TemplateWC) :List[String] = {
     val personalisationsRequired = template.getPersonalisation().asScalaOption.map(_.keySet.asScala.toList).getOrElse(List.empty)
