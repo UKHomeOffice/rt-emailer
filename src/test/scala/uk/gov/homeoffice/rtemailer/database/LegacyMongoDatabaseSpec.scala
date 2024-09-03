@@ -44,6 +44,7 @@ class LegacyMongoDatabaseSpec extends CatsEffectSuite {
       }
       db {
         host = "localhost"
+        host = ${?DB_HOST}
         name = "rt-emailer"
         user = ""
         password = ""
