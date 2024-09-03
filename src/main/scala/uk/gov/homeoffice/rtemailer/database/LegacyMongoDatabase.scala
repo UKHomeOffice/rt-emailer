@@ -21,11 +21,11 @@ import com.typesafe.scalalogging.StrictLogging
 
 class LegacyMongoDatabase(config :Config) extends Database with StrictLogging {
 
-  val dbHost = config.getString("db.host")
-  val dbName = config.getString("db.name")
-  val dbUser = config.getString("db.user")
-  val dbPassword = config.getString("db.password")
-  val dbParams = config.getString("db.params")
+  val dbHost = config.getString("db.mongo.host")
+  val dbName = config.getString("db.mongo.name")
+  val dbUser = config.getString("db.mongo.user")
+  val dbPassword = config.getString("db.mongo.password")
+  val dbParams = config.getString("db.mongo.params")
   val mongoConnectionString = dbUser.isEmpty match {
     case false =>
       logger.info(s"mongo connection string: mongodb://$dbUser:*******@$dbHost/$dbName?$dbParams")

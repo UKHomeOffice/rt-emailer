@@ -7,11 +7,11 @@ import com.mongodb.casbah.MongoClientURI
 // required for interaction with rtp-email-lib
 trait EmailMongo extends Mongo /* with StrictLogging */ {
 
-  val dbHost = Main.config.getString("db.host")
-  val dbName = Main.config.getString("db.name")
-  val dbUser = Main.config.getString("db.user")
-  val dbPassword = Main.config.getString("db.password")
-  val dbParams = Main.config.getString("db.params")
+  val dbHost = Main.config.getString("db.mongo.host")
+  val dbName = Main.config.getString("db.mongo.name")
+  val dbUser = Main.config.getString("db.mongo.user")
+  val dbPassword = Main.config.getString("db.mongo.password")
+  val dbParams = Main.config.getString("db.mongo.params")
   val mongoConnectionString = dbUser.isEmpty match {
     case false =>
       s"mongodb://$dbUser:$dbPassword@$dbHost/$dbName?$dbParams"

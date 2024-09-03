@@ -43,12 +43,15 @@ class LegacyMongoDatabaseSpec extends CatsEffectSuite {
         templateDebug = false
       }
       db {
-        host = "localhost"
-        host = ${?DB_HOST}
-        name = "rt-emailer"
-        user = ""
-        password = ""
-        params = ""
+        backend = "LegacyMongoDatabase"
+        mongo {
+          host = "localhost"
+          host = ${?DB_HOST}
+          name = "rt-emailer"
+          user = ""
+          password = ""
+          params = ""
+        }
       }
       govNotify {
         apiKey = "1234"
