@@ -155,7 +155,7 @@ class govNotifyEmailSenderSpec extends CatsEffectSuite {
           "details" -> MongoDBObject("age" -> 17),
           "boolField" -> "True", // not a bool field, but a string that can be molded into a boolean field
           "dateOfBirth" -> DateTime.parse("2023-02-01T13:44:55"),
-          "latestApplication" -> MongoDBObject("parentRegisteredTravellerNumber" -> "RT65")
+          "parentRegisteredTravellerNumber" -> "RT65"
         )))))
         case Some(_) =>
           IO.delay(Right(Some(new MongoDBObject(MongoDBObject(
@@ -171,7 +171,7 @@ class govNotifyEmailSenderSpec extends CatsEffectSuite {
 
     override def parentObjectFromCaseObject(caseObj :MongoDBObject)(implicit appContext :AppContext) :IO[Either[GovNotifyError, Option[MongoDBObject]]] = {
       // pretend scenario
-      caseObj.getAs[String]("latestApplication.parentRegisteredTravellerNumber") match {
+      caseObj.getAs[String]("parentRegisteredTravellerNumber") match {
         case Some("RT65") =>
           IO.delay(Right(Some(new MongoDBObject(MongoDBObject(
             "registeredTravellerNumber" -> "RT65",
@@ -238,7 +238,7 @@ class govNotifyEmailSenderSpec extends CatsEffectSuite {
 
   test("extracting parameters from a parent object works (in isolation)") {
     val testCase = new MongoDBObject(MongoDBObject(
-      "latestApplication" -> MongoDBObject("parentRegisteredTravellerNumber" -> "RT65"),
+      "parentRegisteredTravellerNumber" -> "RT65",
       "name" -> "phillip",
       "details" -> MongoDBObject("age" -> 17)
     ))

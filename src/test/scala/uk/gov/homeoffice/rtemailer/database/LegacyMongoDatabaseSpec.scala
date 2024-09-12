@@ -21,7 +21,7 @@ class LegacyMongoDatabaseSpec extends CatsEffectSuite {
       "_id" -> childSubmissionId,
       "registeredTravellerNumber" -> "RT-CHILD",
       "name" -> "Dillon",
-      "latestApplication" -> MongoDBObject("parentRegisteredTravellerNumber" -> "RT-PARENT")
+      "parentRegisteredTravellerNumber" -> "RT-PARENT"
     )
 
     val parentCaseObject = MongoDBObject(

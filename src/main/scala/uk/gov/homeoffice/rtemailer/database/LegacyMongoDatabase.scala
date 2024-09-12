@@ -116,7 +116,7 @@ class LegacyMongoDatabase(config :Config) extends Database with StrictLogging {
   def parentObjectFromCaseObject(caseObj :MongoDBObject)(implicit appContext :AppContext) :IO[Either[GovNotifyError, Option[MongoDBObject]]] = {
     lazy val caseTable :String = config.getString("govNotify.caseTable")
 
-    extractDBField(caseObj, "latestApplication.parentRegisteredTravellerNumber") match {
+    extractDBField(caseObj, "parentRegisteredTravellerNumber") match {
       case Some(parentRT) => IO.blocking {
         parentRT.stringValue() match {
           case Right(parentRTString) =>
@@ -127,12 +127,12 @@ class LegacyMongoDatabase(config :Config) extends Database with StrictLogging {
                 GovNotifyError(s"Database error looking up parent case from case: ${exc.getMessage()}")
               }
           case Left(exc) =>
-            logger.info(s"latestApplication.parentRegisteredTravellerNumber was not a string (${caseObj.get("_id")})")
+            logger.info(s"parentRegisteredTravellerNumber was not a string (${caseObj.get("_id")})")
             Right(None)
         }
       }
       case None =>
-        logger.info(s"No latestApplication.parentRegisteredTravellerNumber in caseObj (${caseObj.get("_id")})")
+        logger.info(s"No parentRegisteredTravellerNumber in caseObj (${caseObj.get("_id")})")
         IO.delay(Right(None))
     }
   }
