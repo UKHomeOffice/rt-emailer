@@ -383,5 +383,9 @@ parent:details.age:minusN18:gt10=yes"""))
 
     assertEquals(govNotifyEmailSender.sendMessage(helloTypeEmail).unsafeRunSync(), Waiting)
   }
+
+  //test("GovNotifyEmailSender can send attachments") {
+  //  val email = new Email(new ObjectId().toHexString, Some(defaultCaseId), None, testAppContext.nowF(), "test@example.com", "", "", "", "WAITING", emailType = "TemplateWithPersonalisations", Nil, personalisations=Some(MongoDBObject("attachment" -> MongoDBList[MongoDBObject["banana")))
+  //}
 }
 

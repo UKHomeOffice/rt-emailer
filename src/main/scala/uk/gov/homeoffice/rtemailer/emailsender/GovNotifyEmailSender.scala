@@ -2,10 +2,11 @@ package uk.gov.homeoffice.rtemailer.emailsender
 
 import cats.data.EitherT
 import cats.effect._
+import cats.implicits._
 import uk.gov.homeoffice.domain.core.email.Email
 import uk.gov.homeoffice.domain.core.email.EmailStatus._
 import com.typesafe.scalalogging.StrictLogging
-import uk.gov.homeoffice.mongo.casbah.MongoDBObject
+import uk.gov.homeoffice.mongo.casbah.{MongoDBObject, MongoDBList}
 import scala.collection.JavaConverters._
 import scala.util.Try
 import scala.concurrent.duration.Duration
@@ -58,7 +59,7 @@ class GovNotifyEmailSender(implicit appContext :AppContext) extends StrictLoggin
   }
 
   // if a config value is not found, we just return empty string, we do not throw an error.
-  def buildConfigPersonalisations(personalisationsRequired :List[String], templateName :String) :Either[GovNotifyError, Map[String, String]] = {
+  def buildConfigPersonalisations(personalisationsRequired :List[String], templateName :String) :Either[GovNotifyError, Map[String, Object]] = {
     def resolveConfigValue(configName :String) :Either[GovNotifyError, String] = {
       appContext.config.hasPath(s"govNotify.staticPersonalisations.$configName") match {
         case true => Try(appContext.config.getString(s"govNotify.staticPersonalisations.$configName"))
@@ -68,7 +69,7 @@ class GovNotifyEmailSender(implicit appContext :AppContext) extends StrictLoggin
       }
     }
 
-    val allPersonalisations :List[Either[GovNotifyError, (String, String)]] = personalisationsRequired
+    val allPersonalisations :List[Either[GovNotifyError, (String, Object)]] = personalisationsRequired
       .filter(_.startsWith("config:"))
       .map { personalisationRequired =>
         val (_ :: configName :: _) = personalisationRequired.split(":").toList
@@ -86,13 +87,13 @@ class GovNotifyEmailSender(implicit appContext :AppContext) extends StrictLoggin
   }
 
   // Given any mongoDB Object and list of personalisations, this function looks up the value
-  // and returns a Map[String, String] of them. The individual personalisationsRequired strings
+  // and returns a Map[String, Object] of them. The individual personalisationsRequired strings
   // contain functions (i.e.  case:myField:lower:containsX:not)
   //                           |       |       |
   //                           |       |       |
   //                        source    field   functions
 
-  def buildObjectPersonalisations(personalisationsRequired :List[String], obj :MongoDBObject, templateName :String, prefix :String) :Either[GovNotifyError, Map[String, String]] = {
+  def buildObjectPersonalisations(personalisationsRequired :List[String], obj :MongoDBObject, templateName :String, prefix :String) :Either[GovNotifyError, Map[String, Object]] = {
 
     val allResolvedPersonalisations = personalisationsRequired.filter(_.startsWith(s"$prefix:")).map { personalisationRequired =>
 
@@ -135,7 +136,7 @@ class GovNotifyEmailSender(implicit appContext :AppContext) extends StrictLoggin
   // We can use the generic buildObjectPersonalisations to extract
   // personalisations from a case object, an email object or a parent object.
 
-  def buildCasePersonalisations(personalisationsRequired :List[String], email :Email, templateName :String) :IO[Either[GovNotifyError, (Map[String, String], Option[MongoDBObject])]] = {
+  def buildCasePersonalisations(personalisationsRequired :List[String], email :Email, templateName :String) :IO[Either[GovNotifyError, (Map[String, Object], Option[MongoDBObject])]] = {
     appContext.database.caseObjectFromEmail(email).map {
       case Right(Some(caseObj)) =>
         buildObjectPersonalisations(personalisationsRequired, caseObj, templateName, "case").map { m => (m, Some(caseObj)) }
@@ -145,11 +146,11 @@ class GovNotifyEmailSender(implicit appContext :AppContext) extends StrictLoggin
     }
   }
 
-  def buildEmailPersonalisations(personalisationsRequired :List[String], email :Email, templateName :String) :Either[GovNotifyError, Map[String, String]] = {
+  def buildEmailPersonalisations(personalisationsRequired :List[String], email :Email, templateName :String) :Either[GovNotifyError, Map[String, Object]] = {
     buildObjectPersonalisations(personalisationsRequired, email.toDBObject.mongoDBObject, templateName, "email")
   }
 
-  def buildParentPersonalisations(personalisationsRequired :List[String], maybeCaseObj :Option[MongoDBObject], templateName :String) :IO[Either[GovNotifyError, Map[String, String]]] = {
+  def buildParentPersonalisations(personalisationsRequired :List[String], maybeCaseObj :Option[MongoDBObject], templateName :String) :IO[Either[GovNotifyError, Map[String, Object]]] = {
     maybeCaseObj match {
       case Some(caseObj) =>
         appContext.database.parentObjectFromCaseObject(caseObj)
@@ -165,6 +166,36 @@ class GovNotifyEmailSender(implicit appContext :AppContext) extends StrictLoggin
     }
   }
 
+  def buildAttachmentPersonalisations(personalisationsRequired :List[String], email: Email, template :TemplateWC) :IO[Either[GovNotifyError, Map[String, Object]]] = {
+    personalisationsRequired.exists(_.startsWith("attachment:")) match {
+      case true =>
+        val attachments :List[IO[Either[GovNotifyError, List[(String, Object)]]]] = personalisationsRequired.filter(_.startsWith("attachment:")).map { personalisationRequired =>
+          val (_ :: filename :: _) = personalisationRequired.split(":").toList
+          println(s"ATTACHMENT REQUIRED: $filename")
+
+          email.personalisations.flatMap(_.getAs[MongoDBList[MongoDBObject]]("attachments")) match {
+            case None => IO.delay(Right(Nil))
+            case Some(listOfAttachments) => listOfAttachments.toList().find(_.as[String]("filename") == filename) match {
+              case Some(mongoEmailAttachmentRecord) =>
+                println(s"ATTACHMENT RECORD FOUND")
+                val filename = mongoEmailAttachmentRecord.as[String]("filename")
+                val b64data = mongoEmailAttachmentRecord.as[String]("base64data")
+                /* TODO: would be better if it streamed, to reduce the chance of OOM, but Mongo JSON can only be 2MB anyway */
+                val byteArray :Array[Byte] = java.util.Base64.getDecoder().decode(b64data)
+                notifyClientWrapper.prepareUpload(template, byteArray, filename).map {
+                  case Left(appError) => Left(appError)
+                  case Right(uploadedFileReference) =>
+                    println((s"attachment:$filename", uploadedFileReference))
+                    Right(List((s"attachment:$filename", uploadedFileReference)))
+                }
+              case None => IO.delay(Right(Nil))
+            }
+          }
+        }
+        attachments.sequence.map(appResultCollect(_)).map { _.map { _.flatten.toMap }}
+      case false => IO.delay(Right(Map.empty))
+    }
+  }
 
   def getPersonalisationsRequired(template :TemplateWC) :List[String] = {
     val personalisationsRequired = template.getPersonalisation().asScalaOption.map(_.keySet.asScala.toList).getOrElse(List.empty)
@@ -191,8 +222,9 @@ class GovNotifyEmailSender(implicit appContext :AppContext) extends StrictLoggin
           parentPersonalisations <- EitherT(buildParentPersonalisations(personalisationsRequired, caseObj, template.getName()))
           emailPersonalisations <- EitherT(IO.delay(buildEmailPersonalisations(personalisationsRequired, email, template.getName())))
           configPersonalisations <- EitherT(IO.delay(buildConfigPersonalisations(personalisationsRequired, template.getName())))
+          attachmentPersonalisations <- EitherT(buildAttachmentPersonalisations(personalisationsRequired, email, template))
         } yield {
-          casePersonalisations ++ parentPersonalisations ++ emailPersonalisations ++ configPersonalisations
+          casePersonalisations ++ parentPersonalisations ++ emailPersonalisations ++ configPersonalisations ++ attachmentPersonalisations
         }
 
         allPersonalisations.value.flatMap {

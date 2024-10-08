@@ -51,21 +51,13 @@ class LegacyMongoDatabase(config :Config) extends Database with StrictLogging {
   val name = "Mongo Database"
 
   def getCollection(collectionName :String) :MongoCasbahRepository =
-    new MongoCasbahRepository(
-      new MongoJsonRepository(
-        new MongoStreamRepository(
-          mongoConnection,
-          collectionName,
-          List("_id")
-        )
-      )
-    )
+    MongoCasbahRepository(mongoConnection, collectionName)
 
   lazy val processLockRepository = new ProcessLockRepository(mongoConnection)
   lazy val host = InetAddress.getLocalHost.getHostName
   val lockName = "rt-emailer"
 
-  lazy val emailRepository = new EmailRepository(mongoConnection)
+  lazy val emailRepository = EmailRepository(mongoConnection)
   
   def obtainLock() :IO[Lock] = { IO.delay(processLockRepository.obtainLock(lockName, host).getOrElse(throw new Exception(s"Unable to aquire lock"))) }
   def releaseLock(lock :Lock) :IO[Unit] = { IO.delay(processLockRepository.releaseLock(lock)) }

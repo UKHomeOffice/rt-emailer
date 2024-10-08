@@ -4,6 +4,7 @@ import uk.gov.homeoffice.mongo.casbah.MongoDBObject
 import org.joda.time.DateTime
 import org.bson.types.ObjectId
 import uk.gov.homeoffice.mongo.casbah.MongoDBList
+import cats.data.EitherT
 
 import uk.gov.homeoffice.rtemailer.model._
 
@@ -13,7 +14,7 @@ object Util {
     def asScalaOption() :Option[A] = if (underlying.isEmpty) None else Some(underlying.get())
   }
 
-  implicit class ScalaMapOps(val underlying :Map[String, String]) extends AnyVal {
+  implicit class ScalaMapOps(val underlying :Map[String, Object]) extends AnyVal {
     def asJavaMap() :java.util.HashMap[String, Object] = {
       val javaMap = new java.util.HashMap[String, Object]()
       underlying.foreach { case (k, v) => javaMap.put(k, v) }
@@ -35,4 +36,11 @@ object Util {
     }).toOption.flatten
   }
 
+  def appResultCollect[A, B](in :List[Either[A, B]])/* (implicit v :Semigroup[A]) */ :Either[A, List[B]] = {
+    in.collect { case Left(appError) => appError } match {
+      case Nil => Right(EitherT(in).collectRight)
+      case listOfErrors => Left(listOfErrors.head)
+      //case listOfErrors => Left(v.combine(listOfErrors))
+    }
+  }
 }

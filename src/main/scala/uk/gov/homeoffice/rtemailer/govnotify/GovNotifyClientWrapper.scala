@@ -54,7 +54,7 @@ class GovNotifyClientWrapper(implicit appContext :AppContext) extends StrictLogg
     )
   }
 
-  def generateTemplatePreview(twc :TemplateWC, personalisations :Map[String, String]) :IO[Either[GovNotifyError, TemplatePreview]] = {
+  def generateTemplatePreview(twc :TemplateWC, personalisations :Map[String, Object]) :IO[Either[GovNotifyError, TemplatePreview]] = {
     IO.blocking(Try(twc.client.generateTemplatePreview(
       twc.template.getId().toString(),
       personalisations.asJavaMap(),
@@ -69,7 +69,7 @@ class GovNotifyClientWrapper(implicit appContext :AppContext) extends StrictLogg
     )
   }
 
-  def sendEmail(email :Email, twc :TemplateWC, allPersonalisations :Map[String, String]) :IO[Either[GovNotifyError, SendEmailResponse]] = {
+  def sendEmail(email :Email, twc :TemplateWC, allPersonalisations :Map[String, Object]) :IO[Either[GovNotifyError, SendEmailResponse]] = {
     val allCopies = List(email.recipient) ++ email.cc
     val emailsSent :IO[List[Either[GovNotifyError, SendEmailResponse]]] = allCopies.zipWithIndex.map {
       case (recipient, 0) => sendOneEmail(recipient, email.emailId, twc, allPersonalisations)
@@ -93,7 +93,7 @@ class GovNotifyClientWrapper(implicit appContext :AppContext) extends StrictLogg
     }
   }
 
-  def sendOneEmail(recipient :String, emailReference :String, twc :TemplateWC, allPersonalisations :Map[String, String]) :IO[Either[GovNotifyError, SendEmailResponse]] = {
+  def sendOneEmail(recipient :String, emailReference :String, twc :TemplateWC, allPersonalisations :Map[String, Object]) :IO[Either[GovNotifyError, SendEmailResponse]] = {
     IO.blocking(Try(twc.client.sendEmail(
       twc.template.getId().toString(),
       recipient,
@@ -109,6 +109,19 @@ class GovNotifyClientWrapper(implicit appContext :AppContext) extends StrictLogg
           Right(sendEmailResponse)
       }
     )
+  }
+
+  def prepareUpload(twc :TemplateWC, data :Array[Byte], filename :String) :IO[Either[GovNotifyError, Object]] = {
+    println("preparing upload....")
+    IO.blocking(Try(uk.gov.service.notify.NotificationClient.prepareUpload(data, filename)).toEither match {
+      case Left(exc) =>
+        appContext.updateAppStatus(_.recordGovNotifyError(s"Error calling GovNotify.prepareUpload: ${exc.getMessage}"))
+        Left(GovNotifyError(s"Error calling GovNotify.prepareUpload (template: ${twc.getName}, filename: $filename): ${exc.getMessage}"))
+      case Right(uploadReference) =>
+        appContext.updateAppStatus(_.markGovNotifyOk)
+        println(s"uploadedFileReference: $uploadReference")
+        Right(uploadReference)
+    })
   }
 }
 
