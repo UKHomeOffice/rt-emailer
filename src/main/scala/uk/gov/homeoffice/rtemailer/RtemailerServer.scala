@@ -51,23 +51,14 @@ object RtemailerServer extends StrictLogging {
         .toList
         .map { listOfResults =>
 
-          def categorise(emailSentResult :EmailSentResult) :String = emailSentResult match {
-            case Sent(_, _) => "SENT"
-            case _ => "NOT SENT"
-          }
+          val sentCount = listOfResults.collect { case Sent(_, _) => 1 }.sum
+          val unsentCount = listOfResults.length - sentCount
 
-          val countOfResults = listOfResults
-            .map(categorise)
-            .groupBy(_.toString)
-            .mapValues(_.length)
-            .toList
-            .sortBy(_._1)
-            .map { case (k, v) => s"$k = $v"  }.mkString(",")
-
-          if (countOfResults.nonEmpty)
-            logger.info(s"Summary: $countOfResults")
+          if (listOfResults.nonEmpty)
+            logger.info(s"Summary: SENT = $sentCount, NOT SENT = $unsentCount")
           else
             logger.info(s"Summary: There was nothing to do")
+          appContext.updateAppStatus(_.recordEmailsSent(sentCount, unsentCount))
         }
     }
   }
