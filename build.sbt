@@ -76,6 +76,7 @@ assemblyMergeStrategy in assembly := {
   case "META-INF/mimetypes.default" => MergeStrategy.first
   case "META-INF/gfprobe-provider.xml" => MergeStrategy.first
   case "META-INF/javamail-providers.xml" => MergeStrategy.first
+  case "META-INF/native-image/org.mongodb/bson/native-image.properties" => MergeStrategy.first
   case d if d.endsWith(".jar:module-info.class") => MergeStrategy.first
   case d if d.endsWith("module-info.class") => MergeStrategy.first
   case d if d.endsWith("/MatchersBinder.class") => MergeStrategy.discard
