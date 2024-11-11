@@ -8,7 +8,7 @@ import uk.gov.homeoffice.rtemailer.model.AppContext
 import org.bson.types.ObjectId
 import uk.gov.homeoffice.rtemailer.emailsender._
 
-import com.mongodb.casbah.commons.MongoDBObject
+import uk.gov.homeoffice.mongo.casbah._
 
 class LegacyMongoDatabaseSpec extends CatsEffectSuite {
 
@@ -51,6 +51,7 @@ class LegacyMongoDatabaseSpec extends CatsEffectSuite {
           user = ""
           password = ""
           params = ""
+          ssl = false
         }
       }
       govNotify {
@@ -75,13 +76,13 @@ class LegacyMongoDatabaseSpec extends CatsEffectSuite {
       statsDClient = null
     )
 
-    legacyMongoDatabase.mongoDB_("submissions").insert(childCaseObject)
-    legacyMongoDatabase.mongoDB_("submissions").insert(parentCaseObject)
-    legacyMongoDatabase.mongoDB_("email").insert(emailObject)
+    legacyMongoDatabase.getCollection("submissions").insertOne(childCaseObject)
+    legacyMongoDatabase.getCollection("submissions").insertOne(parentCaseObject)
+    legacyMongoDatabase.getCollection("email").insertOne(emailObject)
 
     // Test begins here.
     val govNotifyEmailSender = new GovNotifyEmailSender()(appContext)
-    val result = govNotifyEmailSender.buildParentPersonalisations(List("parent:name"), Some(new MongoDBObject(childCaseObject)), "my template").unsafeRunSync()
+    val result = govNotifyEmailSender.buildParentPersonalisations(List("parent:name"), Some(childCaseObject), "my template").unsafeRunSync()
     assertEquals(result.right.get, Map("parent:name" -> "Jullian"))
   }
 }

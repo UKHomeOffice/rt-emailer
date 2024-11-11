@@ -1,9 +1,9 @@
 package uk.gov.homeoffice.rtemailer
 
-import com.mongodb.casbah.commons.MongoDBObject
+import uk.gov.homeoffice.mongo.casbah.MongoDBObject
 import org.joda.time.DateTime
 import org.bson.types.ObjectId
-import com.mongodb.casbah.commons.MongoDBList
+import uk.gov.homeoffice.mongo.casbah.MongoDBList
 
 import uk.gov.homeoffice.rtemailer.model._
 
@@ -22,13 +22,12 @@ object Util {
   }
 
   def extractDBField(dbObj :MongoDBObject, fieldName :String) :Option[TemplateLookup] = {
-    import com.mongodb.casbah.Imports._
 
     scala.util.Try(dbObj.getAs[Any](fieldName).map {
       case d :org.joda.time.DateTime => TDate(d)
       case d :java.util.Date => TDate(new DateTime(d))
       // currently only support for lists of strings.
-      case l :MongoDBList => TList(l.map(_.toString).toList)
+      case l :MongoDBList[_] => TList(l.toList.map(_.toString))
       case o :ObjectId => TString(o.toHexString)
       case true => TString("yes")
       case false => TString("no")

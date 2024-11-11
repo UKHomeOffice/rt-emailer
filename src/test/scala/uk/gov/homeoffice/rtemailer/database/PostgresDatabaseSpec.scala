@@ -5,7 +5,8 @@ import uk.gov.homeoffice.domain.core.email.Email
 import uk.gov.homeoffice.rtemailer.model._
 import io.circe._
 import io.circe.syntax._
-import com.mongodb.casbah.commons.{MongoDBObject, MongoDBList}
+import uk.gov.homeoffice.mongo.casbah.MongoDBObject
+import uk.gov.homeoffice.mongo.casbah.MongoDBList
 import com.mongodb.DBObject
 import org.bson.types.ObjectId
 import com.typesafe.config.ConfigFactory
