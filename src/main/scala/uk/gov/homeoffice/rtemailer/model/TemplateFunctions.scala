@@ -29,20 +29,20 @@ class TemplateFunctions(implicit appContext: AppContext) {
 
     Try(function match {
       case Right(count) => TString(value.string.takeRight(count.toInt))
-      case GreaterThan(gtInt) => if (value.string.toInt > gtInt.toInt) TString("yes") else TString("no")
-      case Contains(inStr) => if (value.string.contains(inStr)) TString("yes") else TString("no")
+      case GreaterThan(gtInt) => if value.string.toInt > gtInt.toInt then TString("yes") else TString("no")
+      case Contains(inStr) => if value.string.contains(inStr) then TString("yes") else TString("no")
       case MinusN(int) =>
         val n = (value.string.toInt - int.toInt)
         TString(n.toString)
       case PlusN(int) =>
         val n = (value.string.toInt + int.toInt)
         TString(n.toString)
-      case "bool" => if (value.string == "true") TString("yes") else TString("no")
+      case "bool" => if value.string == "true" then TString("yes") else TString("no")
       case "lower" => TString(value.string.toLowerCase)
       case "upper" => TString(value.string.toUpperCase)
       case "title" => TString(value.string.take(1).toUpperCase + value.string.drop(1).toLowerCase)
-      case "empty" => if (value.string.isEmpty) TString("yes") else TString("no")
-      case "not" => if (value.string == "yes") TString("no") else TString("yes")
+      case "empty" => if value.string.isEmpty then TString("yes") else TString("no")
+      case "not" => if value.string == "yes" then TString("no") else TString("yes")
       case "pounds" =>
         val d = (BigDecimal(value.string) / 100).setScale(2)
         TString(d.toString)
@@ -70,7 +70,7 @@ class TemplateFunctions(implicit appContext: AppContext) {
 
     Try(function match {
       case "csvList" => TString(value.list.mkString(","))
-      case Contains(text) => if (value.list.contains(text)) TString("yes") else TString("no")
+      case Contains(text) => if value.list.contains(text) then TString("yes") else TString("no")
       case Index(idx) => TString(value.list(idx.toInt))   // throws IndexOutOfBounds intentionally
       case unknownFunction => throw new Exception(s"Invalid function name: $unknownFunction (for a list object)")
     }).toEither
@@ -94,7 +94,7 @@ class TemplateFunctions(implicit appContext: AppContext) {
       case Plus("Weeks", weeks) => modify(_.plusWeeks(weeks.toInt))
       case Plus("Months", months) => modify(_.plusMonths(months.toInt))
       case Plus("Years", years) => modify(_.plusYears(years.toInt))
-      case "beforeNow" => if (value.date.isBefore(appContext.nowF())) TString("yes") else TString("no")
+      case "beforeNow" => if value.date.isBefore(appContext.nowF()) then TString("yes") else TString("no")
       case unknownFunction => throw new Exception(s"Invalid function name: $unknownFunction (for a date object)")
     }).toEither
       .left.map(exc => GovNotifyError(exc.getMessage))
@@ -119,10 +119,10 @@ class TemplateFunctions(implicit appContext: AppContext) {
   }
 
   def applyFunctionsStr(value :TemplateLookup, functionsList :List[String]) :Either[GovNotifyError, String] =
-    for {
+    for
       funcResult <- applyFunctions(value, functionsList)
       stringifiedResult <- funcResult.stringValue()
-    } yield { stringifiedResult }
+    yield { stringifiedResult }
 
 }
 

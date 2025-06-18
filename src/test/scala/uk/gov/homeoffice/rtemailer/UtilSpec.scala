@@ -11,15 +11,15 @@ class UtilSpec extends CatsEffectSuite {
   import Util._
 
   test("java option to scala option works") {
-    assertEquals(Optional.of[String]("hello").asScalaOption, Some("hello"))
-    assertEquals(Optional.empty[String].asScalaOption, None)
+    assertEquals(Optional.of[String]("hello").asScalaOption(), Some("hello"))
+    assertEquals(Optional.empty[String].asScalaOption(), None)
   }
 
   test("java map to scala map works") {
     val jm = new java.util.HashMap[String, Object]()
     jm.put("hello", "test")
 
-    assertEquals(Map("hello" -> "test").asJavaMap, jm)
+    assertEquals(Map("hello" -> "test").asJavaMap(), jm)
   }
 
   test("pulling fields from a Mongo Object into our type system works") {

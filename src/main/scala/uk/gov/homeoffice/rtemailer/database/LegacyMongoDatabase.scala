@@ -126,7 +126,7 @@ class LegacyMongoDatabase(config :Config) extends Database with StrictLogging {
             appContext.updateAppStatus(_.recordDatabaseError(exc.getMessage))
             Left(GovNotifyError(s"Database error looking up case from email: ${exc.getMessage()}"))
           case Right(maybeObj) =>
-            appContext.updateAppStatus(_.markDatabaseOk)
+            appContext.updateAppStatus(_.markDatabaseOk())
             Right(maybeObj)
           }
         )

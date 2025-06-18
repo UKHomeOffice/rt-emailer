@@ -1,7 +1,7 @@
-val Http4sVersion = "0.23.24"
-val CirceVersion = "0.14.6"
-val MunitVersion = "0.7.29"
-val LogbackVersion = "1.4.14"
+val Http4sVersion = "0.23.30"
+val CirceVersion = "0.14.14"
+val MunitVersion = "1.1.1"
+val LogbackVersion = "1.5.18"
 val MunitCatsEffectVersion = "1.0.7"
 
 credentials += Credentials(Path.userHome / ".ivy2" / ".credentials")
@@ -18,8 +18,7 @@ lazy val root = (project in file("."))
   .settings(
     organization := "uk.gov.homeoffice",
     name := "rt-emailer",
-    version := "2.0.1",
-    scalaVersion := "2.13.14",
+    scalaVersion := "3.7.1",
     libraryDependencies ++= Seq(
       "org.http4s"      %% "http4s-ember-server" % Http4sVersion,
       "org.http4s"      %% "http4s-ember-client" % Http4sVersion,
@@ -30,20 +29,20 @@ lazy val root = (project in file("."))
       "org.scalameta"   %% "munit"               % MunitVersion           % Test,
       "org.typelevel"   %% "munit-cats-effect-3" % MunitCatsEffectVersion % Test,
       "ch.qos.logback"  %  "logback-classic"     % LogbackVersion         % Runtime,
-      "org.scalameta"   %% "svm-subs"            % "20.2.0",
-      "uk.gov.homeoffice" %% "rtp-email-lib"     % "4.0.3-g4189841",
+      //"org.scalameta"   %% "svm-subs"            % "20.2.0",
+      "uk.gov.homeoffice" %% "rtp-email-lib"     % "4.0.8-g42c6f24-DPSPS-1701-Updates-U-SNAPSHOT",
       "com.typesafe"     % "config"              % "1.4.3",
       "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5",
-      "com.github.eikek" %% "emil-common" % "0.15.0",
-      "com.github.eikek" %% "emil-javamail" % "0.15.0",
-      "uk.gov.service.notify" % "notifications-java-client" % "3.19.2-RELEASE",
-      "com.outr" %% "hasher" % "1.2.2",
-      "com.github.gphat" %% "censorinus" % "2.1.16",
-      "org.tpolecat" %% "skunk-core" % "0.6.3",
-      "org.tpolecat" %% "skunk-circe" % "0.6.3"
+      "com.github.eikek" %% "emil-common" % "0.19.0",
+      "com.github.eikek" %% "emil-javamail" % "0.19.0",
+      "uk.gov.service.notify" % "notifications-java-client" % "5.2.1-RELEASE",
+      "com.outr" %% "hasher" % "1.2.3",
+      //"com.github.gphat" %% "censorinus" % "2.1.16",
+      "org.tpolecat" %% "skunk-core" % "0.6.4",
+      "org.tpolecat" %% "skunk-circe" % "0.6.4"
     ),
-    addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.13.3" cross CrossVersion.full),
-    addCompilerPlugin("com.olegpy"    %% "better-monadic-for" % "0.3.1"),
+//    addCompilerPlugin("org.typelevel" %% "kind-projector" % "0.13.3" cross CrossVersion.full),
+//    addCompilerPlugin("com.olegpy"    %% "better-monadic-for" % "0.3.1"),
     testFrameworks += new TestFramework("munit.Framework")
   )
 
@@ -91,3 +90,4 @@ assemblyExcludedJars in assembly := {
   cp filter { f => f.data.getName == "mailapi-1.4.3.jar" || f.data.getName == "gimap-2.0.1.jar" || f.data.getName == "imap-2.0.1.jar" }
 }
 
+scalacOptions ++= Seq("-new-syntax", "-rewrite", "source 3.7-migration")

@@ -19,7 +19,7 @@ object RtemailerServer extends StrictLogging {
     val emailPollingFrequency :Duration = Duration(appContext.config.getString("app.emailPollingFrequency"))
 
     lazy val emailerLoop: IO[Unit] = {
-      sendEmails >>
+      sendEmails() >>
       IO.sleep(emailPollingFrequency) >>
       emailerLoop
     }
@@ -39,12 +39,12 @@ object RtemailerServer extends StrictLogging {
   def sendEmails()(implicit appContext :AppContext) :IO[Unit] = {
     val database = appContext.database
 
-    val processLock = Resource.make(database.obtainLock)(database.releaseLock)
+    val processLock = Resource.make(database.obtainLock())(database.releaseLock)
     val emailer = new EmailSender()
 
     processLock.use { _ =>
       database.getWaitingEmails()
-        .evalTap { email :Email => IO.delay(logger.info(s"Sending email to ${email.recipient}")) }
+        .evalTap { (email :Email) => IO.delay(logger.info(s"Sending email to ${email.recipient}")) }
         .evalMap { case email => emailer.sendMessage(email).map { emailSentResult => (email, emailSentResult) } }
         .evalMap { case (email, emailSentResult) => database.updateStatus(email, emailSentResult) }
         .compile
@@ -54,7 +54,7 @@ object RtemailerServer extends StrictLogging {
           val sentCount = listOfResults.collect { case Sent(_, _) => 1 }.sum
           val unsentCount = listOfResults.length - sentCount
 
-          if (listOfResults.nonEmpty)
+          if listOfResults.nonEmpty then
             logger.info(s"Summary: SENT = $sentCount, NOT SENT = $unsentCount")
           else
             logger.info(s"Summary: There was nothing to do")

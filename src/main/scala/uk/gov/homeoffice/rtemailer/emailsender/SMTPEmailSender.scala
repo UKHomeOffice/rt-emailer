@@ -44,12 +44,12 @@ class SMTPEmailSender(implicit appContext :AppContext) extends StrictLogging {
     val emailToSend :Mail[IO] = buildMessage(email)
     senderImpl(smtpConf).send(emailToSend).map { result =>
       logger.info(s"Email reciept: ${result.toList.mkString(",")}")
-      appContext.updateAppStatus(_.markDatabaseOk)
-      appContext.updateAppStatus(_.markSmtpRelayOk)
+      appContext.updateAppStatus(_.markDatabaseOk())
+      appContext.updateAppStatus(_.markSmtpRelayOk())
       Sent()
     }.handleErrorWith { exc =>
       logger.error(s"Exception thrown trying to send email: $exc")
-      appContext.updateAppStatus(_.markSmtpRelayOk)
+      appContext.updateAppStatus(_.markSmtpRelayOk())
       IO.delay(TransientError(exc.getMessage))
     }
   }
