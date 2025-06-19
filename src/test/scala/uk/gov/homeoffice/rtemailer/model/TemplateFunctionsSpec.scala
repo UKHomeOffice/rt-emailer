@@ -14,8 +14,7 @@ class TemplateFunctionsSpec extends CatsEffectSuite {
         updateTokenSecret = "bonjour mon ami"
       }
     """),
-    null //,
-    //null
+    null
   ))
 
   def testFunc = templateFunctions.applyFunction _

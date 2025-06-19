@@ -1,4 +1,4 @@
-FROM eclipse-temurin:17-jre
+FROM eclipse-temurin:24-jre
 
 RUN groupadd -r app -g 1000 || true
 RUN useradd -r -g 1000 -u 1000 -d /app || true

@@ -37,8 +37,7 @@ class govNotifyEmailSenderSpec extends CatsEffectSuite {
         }
       }
     """),
-    null //,
-    // null
+    null
   )
 
   val fakeNotifyWrapper = new GovNotifyClientWrapper()(testAppContext) {

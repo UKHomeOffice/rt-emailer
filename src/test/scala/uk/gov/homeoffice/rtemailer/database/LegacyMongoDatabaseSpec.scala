@@ -72,8 +72,7 @@ class LegacyMongoDatabaseSpec extends CatsEffectSuite {
     val appContext = AppContext(
       nowF = { () => now },
       config = config,
-      database = legacyMongoDatabase //,
-      //statsDClient = null
+      database = legacyMongoDatabase,
     )
 
     legacyMongoDatabase.getCollection("submissions").insertOne(childCaseObject)
