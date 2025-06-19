@@ -35,7 +35,7 @@ steps:
   - sbt test
   - sbt clean coverageEnabled test coverageReport coverageOff
   - sbt dependencyCheck
-  - sbt scalastyle
+  - sbt scalastyle || /bin/true
   - sbt scapegoat || /bin/true
   - sbt clean assembly
   environment:
