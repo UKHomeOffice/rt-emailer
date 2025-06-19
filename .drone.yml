@@ -7,96 +7,106 @@ platform:
   arch: amd64
 
 steps:
-  - name: ecr-login
-    pull: if-not-exists
-    image: quay.io/ukhomeofficedigital/dind-awscli:19.03.12-dind-1.18.55
-    environment:
-      AWS_ACCESS_KEY_ID:
-        from_secret: aws_access_key_id
-      AWS_SECRET_ACCESS_KEY:
-        from_secret: aws_secret_access_key
-    commands:
-      # wait for docker service to be up before running docker build
-      - n=0; while [ "$n" -lt 60 ] && [ ! docker stats --no-stream ]; do n=$(( n + 1 )); sleep 1; done
-      - aws ecr get-login-password --region eu-west-2 | docker login --username AWS --password-stdin 340268328991.dkr.ecr.eu-west-2.amazonaws.com
-    volumes:
-      - name: dockerclientconfig
-        path: /root/.docker
-    when:
-      event:
-        - push
-
-  - name: test_and_build
-    pull: if-not-exists
-    image: quay.io/ukhomeofficedigital/scala-sbt:latest
-    commands:
-    - /root/entrypoint.sh
-    - sbt test clean assembly
-    environment:
-      ARTIFACTORY_PASSWORD:
-        from_secret: DOCKER_PASSWORD
-      ARTIFACTORY_USERNAME: regt-build-bot
-      DB_HOST: "mongodatabase"
-    when:
-      event:
+- name: ecr-login
+  pull: if-not-exists
+  image: quay.io/ukhomeofficedigital/dind-awscli:19.03.12-dind-1.18.55
+  environment:
+    AWS_ACCESS_KEY_ID:
+      from_secret: aws_access_key_id
+    AWS_SECRET_ACCESS_KEY:
+      from_secret: aws_secret_access_key
+  commands:
+    # wait for docker service to be up before running docker build
+    - n=0; while [ "$n" -lt 60 ] && [ ! docker stats --no-stream ]; do n=$(( n + 1 )); sleep 1; done
+    - aws ecr get-login-password --region eu-west-2 | docker login --username AWS --password-stdin 340268328991.dkr.ecr.eu-west-2.amazonaws.com
+  volumes:
+    - name: dockerclientconfig
+      path: /root/.docker
+  when:
+    event:
       - push
 
-  - name: build_image
-    pull: if-not-exists
-    image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/dind
-    environment:
-      AWS_REGION: eu-west-2
-    commands:
-      - docker build -t 340268328991.dkr.ecr.eu-west-2.amazonaws.com/rtge/rt-emailer:$${DRONE_COMMIT_SHA} .
-    volumes:
-      - name: dockerclientconfig
-        path: /root/.docker
-    depends_on:
-      - test_and_build
-    when:
-      event:
-        - push
-        - tag
+- name: test_and_build
+  pull: Always
+  image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/rtge/scala-sbt:latest
+  commands:
+  - . /app/entrypoint.sh
+  - git fetch --tags
+  - sbt test
+  - sbt clean coverageEnabled test coverageReport coverageOff
+  - sbt dependencyCheck
+  - sbt scalastyle
+  - sbt scapegoat || /bin/true
+  - sbt clean assembly
+  environment:
+    ARTIFACTORY_PASSWORD:
+      from_secret: DOCKER_PASSWORD
+    ARTIFACTORY_USERNAME: regt-build-bot
+    DB_HOST: "mongodatabase"
+    JRE_VERSION: 24
+    OVERRIDE_BUILD_REPOS: "false"
+    HOME: "/app"
+  when:
+    event:
+    - push
+    - tag
 
-  # https://docs.acp.homeoffice.gov.uk/how-to/security/trivy
-  - name: vulnerability-scan
-    pull: Always
-    image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/trivy/client:latest
-    resources:
-      limits:
-        cpu: 1000
-        memory: 1024Mi
-    environment:
-      FAIL_ON_DETECTION: false
-      IMAGE_NAME: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/rtge/rt-emailer:${DRONE_COMMIT_SHA}
-      SEVERITY: MEDIUM,HIGH,CRITICAL
-    when:
-      branch:
-      - master
-      event:
+- name: build_image
+  pull: if-not-exists
+  image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/dind
+  environment:
+    AWS_REGION: eu-west-2
+  commands:
+    - docker build -t 340268328991.dkr.ecr.eu-west-2.amazonaws.com/rtge/rt-emailer:$${DRONE_COMMIT_SHA} .
+  volumes:
+    - name: dockerclientconfig
+      path: /root/.docker
+  depends_on:
+    - test_and_build
+  when:
+    event:
       - push
-    depends_on:
-      - build_image
+      - tag
 
-  - name: push_build_image
-    image: plugins/ecr
-    settings:
-      registry: 340268328991.dkr.ecr.eu-west-2.amazonaws.com
-      repo: rtge/rt-emailer
-      access_key:
-        from_secret: AWS_ACCESS_KEY_ID
-      secret_key:
-        from_secret: AWS_SECRET_ACCESS_KEY
-      tags:
-        - ${DRONE_COMMIT_SHA}
-        - latest
-    environment:
-      AWS_REGION: eu-west-2
-    when:
-      event:
-        - push
-    depends_on:
-      - build_image
+# https://docs.acp.homeoffice.gov.uk/how-to/security/trivy
+- name: vulnerability-scan
+  pull: Always
+  image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/trivy/client:latest
+  resources:
+    limits:
+      cpu: 1000
+      memory: 1024Mi
+  environment:
+    FAIL_ON_DETECTION: false
+    IMAGE_NAME: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/rtge/rt-emailer:${DRONE_COMMIT_SHA}
+    SEVERITY: MEDIUM,HIGH,CRITICAL
+  when:
+    branch:
+    - master
+    event:
+    - push
+  depends_on:
+    - build_image
+
+- name: push_build_image
+  image: plugins/ecr
+  settings:
+    registry: 340268328991.dkr.ecr.eu-west-2.amazonaws.com
+    repo: rtge/rt-emailer
+    access_key:
+      from_secret: AWS_ACCESS_KEY_ID
+    secret_key:
+      from_secret: AWS_SECRET_ACCESS_KEY
+    tags:
+      - ${DRONE_COMMIT_SHA}
+      - latest
+  environment:
+    AWS_REGION: eu-west-2
+  when:
+    event:
+      - push
+  depends_on:
+    - build_image
 
 services:
 - name: docker
