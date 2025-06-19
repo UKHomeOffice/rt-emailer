@@ -34,10 +34,10 @@ class GovNotifyClientWrapper(implicit appContext :AppContext) extends StrictLogg
       case Some(client2) => getAllClientTemplates(client2)
     }
 
-    (for {
+    (for
       client1TemplatesList <- EitherT(client1Templates)
       client2TemplatesList <- EitherT(client2Templates)
-    } yield { client1TemplatesList ++ client2TemplatesList }).value
+    yield { client1TemplatesList ++ client2TemplatesList }).value
   }
 
   private def getAllClientTemplates(client :NotificationClient) :IO[Either[GovNotifyError, List[TemplateWC]]] = {
@@ -63,7 +63,7 @@ class GovNotifyClientWrapper(implicit appContext :AppContext) extends StrictLogg
         appContext.updateAppStatus(_.recordGovNotifyError(s"Error calling GovNotify.generateTemplatePreview: ${exc.getMessage}"))
         Left(GovNotifyError(s"Error calling GovNotify.generateTemplatePreview: ${exc.getMessage}"))
       case Right(templatePreview) =>
-        appContext.updateAppStatus(_.markGovNotifyOk)
+        appContext.updateAppStatus(_.markGovNotifyOk())
         Right(templatePreview)
       }
     )
@@ -87,7 +87,7 @@ class GovNotifyClientWrapper(implicit appContext :AppContext) extends StrictLogg
           Left(GovNotifyError(s"Multiple errors and no success sending govNotify email: ${email.emailId}. (System will retry)", transient = true))
         case (errorList, successList) =>
           errorList.zipWithIndex.foreach { case (err, idx) => logger.error(s"Mixed error/success sending govNotify email: ${email.emailId}. index: $idx: $err") }
-          successList.zipWithIndex.foreach { case (good, idx) => logger.info(s"Success for partial email part: ${email.emailId}. index: $idx: ${good.getReference().asScalaOption}") }
+          successList.zipWithIndex.foreach { case (good, idx) => logger.info(s"Success for partial email part: ${email.emailId}. index: $idx: ${good.getReference().asScalaOption()}") }
           Left(GovNotifyError(s"Mixed error/success sending govNotify email: ${email.emailId}. (Permanent failure)", transient = false)) // transient flag critical importance to stop spamming emails to people!
       }
     }
@@ -105,7 +105,7 @@ class GovNotifyClientWrapper(implicit appContext :AppContext) extends StrictLogg
           appContext.updateAppStatus(_.recordGovNotifyError(s"Error calling GovNotify.sendEmail: ${exc.getMessage}"))
           Left(GovNotifyError(s"Error calling GovNotify.sendEmail (email reference: $emailReference, recipient: $recipient): ${exc.getMessage}"))
         case Right(sendEmailResponse) =>
-          appContext.updateAppStatus(_.markGovNotifyOk)
+          appContext.updateAppStatus(_.markGovNotifyOk())
           Right(sendEmailResponse)
       }
     )

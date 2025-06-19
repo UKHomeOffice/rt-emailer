@@ -10,7 +10,7 @@ import uk.gov.homeoffice.rtemailer.model._
 object Util {
 
   implicit class JavaOptionalOps[A](val underlying :java.util.Optional[A]) extends AnyVal {
-    def asScalaOption() :Option[A] = if (underlying.isEmpty) None else Some(underlying.get())
+    def asScalaOption() :Option[A] = if underlying.isEmpty then None else Some(underlying.get())
   }
 
   implicit class ScalaMapOps(val underlying :Map[String, String]) extends AnyVal {
@@ -27,7 +27,7 @@ object Util {
       case d :org.joda.time.DateTime => TDate(d)
       case d :java.util.Date => TDate(new DateTime(d))
       // currently only support for lists of strings.
-      case l :MongoDBList[_] => TList(l.toList.map(_.toString))
+      case l :MongoDBList[_] => TList(l.toList().map(_.toString))
       case o :ObjectId => TString(o.toHexString)
       case true => TString("yes")
       case false => TString("no")

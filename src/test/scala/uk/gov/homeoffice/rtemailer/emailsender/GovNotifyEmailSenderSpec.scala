@@ -37,8 +37,8 @@ class govNotifyEmailSenderSpec extends CatsEffectSuite {
         }
       }
     """),
-    null,
-    null
+    null //,
+    // null
   )
 
   val fakeNotifyWrapper = new GovNotifyClientWrapper()(testAppContext) {
@@ -190,8 +190,8 @@ class govNotifyEmailSenderSpec extends CatsEffectSuite {
 
   test("Use Gov Notify if email type matches the name of a template") {
 
-    val testEmail = new Email(new ObjectId().toHexString, None, None, testAppContext.nowF(), "test@example.com", "", "", "", "WAITING", emailType = "HelloEmail", Nil)
-    val unknownType = new Email(new ObjectId().toHexString, None, None, testAppContext.nowF(), "test@example.com", "", "", "", "WAITING", emailType = "UnknownType", Nil)
+    val testEmail = new Email(new ObjectId().toHexString, None, None, testAppContext.nowF(), "test@example.com", "", "", "", "WAITING", emailType = "HelloEmail", personalisations=None, cc=Nil)
+    val unknownType = new Email(new ObjectId().toHexString, None, None, testAppContext.nowF(), "test@example.com", "", "", "", "WAITING", emailType = "UnknownType", personalisations=None, cc=Nil)
 
     assertEquals(govNotifyEmailSender.useGovNotify(testEmail).unsafeRunSync(), Right(true))
     assertEquals(govNotifyEmailSender.useGovNotify(unknownType).unsafeRunSync(), Right(false))
@@ -206,7 +206,7 @@ class govNotifyEmailSenderSpec extends CatsEffectSuite {
   }
 
   test("extracting parameters from case objects work") {
-    val email = new Email(new ObjectId().toHexString, Some(simpleCaseId), None, testAppContext.nowF(), "test@example.com", "", "", "", "WAITING", emailType = "DefaultTemplate", Nil)
+    val email = new Email(new ObjectId().toHexString, Some(simpleCaseId), None, testAppContext.nowF(), "test@example.com", "", "", "", "WAITING", emailType = "DefaultTemplate", personalisations=None, cc=Nil)
 
     val testPersonalisations = List("case:name", "case:details.age")
 
@@ -227,7 +227,7 @@ class govNotifyEmailSenderSpec extends CatsEffectSuite {
   }
 
   test("build process can proceed gracefully without case reference") {
-    val email = new Email(new ObjectId().toHexString, None, None, testAppContext.nowF(), "test@example.com", "", "", "", "WAITING", emailType = "XXX", Nil)
+    val email = new Email(new ObjectId().toHexString, None, None, testAppContext.nowF(), "test@example.com", "", "", "", "WAITING", emailType = "XXX", personalisations=None, cc=Nil)
     val testPersonalisations = List("case:name", "case:details.age")
 
     val caseResult = govNotifyEmailSender.buildCasePersonalisations(testPersonalisations, email, "test-template").unsafeRunSync()
@@ -338,7 +338,8 @@ class govNotifyEmailSenderSpec extends CatsEffectSuite {
       "",
       "WAITING",
       emailType = "HelloEmail",
-      Nil
+      personalisations=None, 
+      cc=Nil
     )
 
     assertEquals(govNotifyEmailSender.useGovNotify(helloTypeEmail).unsafeRunSync(), Right(true))
@@ -373,7 +374,8 @@ parent:details.age:minusN18:gt10=yes"""))
       "",
       "WAITING",
       emailType = "HelloEmail",
-      Nil
+      personalisations=None,
+      cc=Nil
     )
 
     assertEquals(govNotifyEmailSender.sendMessage(helloTypeEmail).unsafeRunSync(), Waiting)

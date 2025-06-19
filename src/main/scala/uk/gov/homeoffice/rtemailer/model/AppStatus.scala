@@ -76,7 +76,7 @@ case class AppStatus(
     appContext.recordMetric("success", success)
     appContext.recordMetric("failed", failed)
 
-    if (success > 0)
+    if success > 0 then
       updCounts.copy(emailLastSentSuccess = Some(appContext.nowF()))
     else
       updCounts

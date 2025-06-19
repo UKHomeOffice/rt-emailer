@@ -39,7 +39,7 @@ class PostgresDatabase(config :Config) extends Database with StrictLogging {
   def releaseLock(lock :Lock) :IO[Unit] = IO.delay(())
 
   def makeSession() :Resource[IO, Session[IO]] = {
-    def strToOption(in :String) = if (in.isEmpty) None else Some(in)
+    def strToOption(in :String) = if in.isEmpty then None else Some(in)
 
     Session.single(
       host     = config.getString("db.postgres.host"),
@@ -56,14 +56,14 @@ class PostgresDatabase(config :Config) extends Database with StrictLogging {
    * tech debt and I have created DPSPS-1419 to come back and do this work correctly.
    */
   def jsonToMongo(json :Json) :MongoDBObject = {
-    val builder = MongoDBObject.newBuilder
+    val builder = MongoDBObject.newBuilder()
 
     val jsonFields :List[(String, Json)] = json.asObject.map(_.toList).getOrElse(List.empty)
     jsonFields.foreach { case (key, jsonValue) => jsonValue match {
       case j if j.isNumber => j.as[Int].toOption.foreach { intValue => builder += (key -> intValue) }
       case j if j.isArray =>
-        j.asArray.foreach { arr :Vector[Json] =>
-          val mongoItems = arr.toList.map { arrItem :Json => jsonToMongo(arrItem) }
+        j.asArray.foreach { (arr :Vector[Json]) =>
+          val mongoItems = arr.toList.map { (arrItem :Json) => jsonToMongo(arrItem) }
           builder += (key -> MongoDBList(mongoItems :_*))
         }
       case j if j.isObject =>

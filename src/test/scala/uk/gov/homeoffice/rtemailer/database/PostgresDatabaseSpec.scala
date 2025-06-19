@@ -26,7 +26,7 @@ class PostgresDatabaseSpec extends CatsEffectSuite {
       "array" -> Json.arr(Json.obj("number" -> Json.fromInt(1)), Json.obj("number" -> Json.fromInt(2)))
     )
 
-    val builder = MongoDBObject.newBuilder
+    val builder = MongoDBObject.newBuilder()
     builder += ("stringField" -> "value")
     builder += ("intField" -> 1)
     builder += ("boolField" -> true)

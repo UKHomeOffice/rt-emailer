@@ -100,7 +100,7 @@ class GovNotifyEmailSender(implicit appContext :AppContext) extends StrictLoggin
 
       val fieldValue :TemplateLookup = extractDBField(obj, fieldName) match {
         case Some(fieldValue) =>
-          if (appContext.config.getBoolean("app.templateDebug")) {
+          if appContext.config.getBoolean("app.templateDebug") then {
             logger.info(s"gov notify type resolution: $fieldName: $fieldValue")
           }
           fieldValue
@@ -111,7 +111,7 @@ class GovNotifyEmailSender(implicit appContext :AppContext) extends StrictLoggin
 
       new TemplateFunctions().applyFunctions(fieldValue, functionList) match {
         case Right(TString(resolvedValue)) =>
-          if (appContext.config.getBoolean("app.templateDebug")) {
+          if appContext.config.getBoolean("app.templateDebug") then {
             logger.info(s"personalisation required: $personalisationRequired. resolved value: $resolvedValue")
           }
           Right((personalisationRequired, resolvedValue))
@@ -170,8 +170,8 @@ class GovNotifyEmailSender(implicit appContext :AppContext) extends StrictLoggin
   }
 
   def getPersonalisationsRequired(template :TemplateWC) :List[String] = {
-    val personalisationsRequired = template.getPersonalisation().asScalaOption.map(_.keySet.asScala.toList).getOrElse(List.empty)
-    if (appContext.config.getBoolean("app.templateDebug")) {
+    val personalisationsRequired = template.getPersonalisation().asScalaOption().map(_.keySet.asScala.toList).getOrElse(List.empty)
+    if appContext.config.getBoolean("app.templateDebug") then {
       logger.info(s"Personalisatons Required for ${template.getName()} (${template.getId()}): $personalisationsRequired")
     }
     personalisationsRequired
@@ -189,12 +189,12 @@ class GovNotifyEmailSender(implicit appContext :AppContext) extends StrictLoggin
       case Right(Some(template)) =>
         val personalisationsRequired = getPersonalisationsRequired(template)
 
-        val allPersonalisations = for {
+        val allPersonalisations = for
           (casePersonalisations, caseObj) <- EitherT(buildCasePersonalisations(personalisationsRequired, email, template.getName()))
           parentPersonalisations <- EitherT(buildParentPersonalisations(personalisationsRequired, caseObj, template.getName()))
           emailPersonalisations <- EitherT(IO.delay(buildEmailPersonalisations(personalisationsRequired, email, template.getName())))
           configPersonalisations <- EitherT(IO.delay(buildConfigPersonalisations(personalisationsRequired, template.getName())))
-        } yield {
+        yield {
           casePersonalisations ++ parentPersonalisations ++ emailPersonalisations ++ configPersonalisations
         }
 
@@ -203,7 +203,7 @@ class GovNotifyEmailSender(implicit appContext :AppContext) extends StrictLoggin
             logger.error(s"Cannot send email ${email.emailId} to ${email.recipient} due to error: $err")
             IO.delay(Waiting)
           case Right(allPersonalisations) =>
-            if (appContext.config.getBoolean("app.templateDebug")) {
+            if appContext.config.getBoolean("app.templateDebug") then {
               logger.info(s"Personalisations: ${allPersonalisations.mkString("\n")}")
             }
             notifyClientWrapper.generateTemplatePreview(
@@ -217,9 +217,9 @@ class GovNotifyEmailSender(implicit appContext :AppContext) extends StrictLoggin
                   allPersonalisations
                 ).map {
                     case Right(response) =>
-                      val govNotifyRef = response.getReference().asScalaOption.getOrElse("")
+                      val govNotifyRef = response.getReference().asScalaOption().getOrElse("")
                       logger.info(s"Email sent via Gov Notify. Notification Id: ${response.getNotificationId()}, gov notify reference: ${govNotifyRef}, email table id: ${email.emailId}, template: ${response.getTemplateId()}, template version: ${response.getTemplateVersion()}")
-                      Sent(newText = Some(templatePreview.getBody()), newHtml = templatePreview.getHtml().asScalaOption)
+                      Sent(newText = Some(templatePreview.getBody()), newHtml = templatePreview.getHtml().asScalaOption())
                     case Left(govNotifySendError) if govNotifySendError.transient && exhaustedRetries(email) =>
                       logger.error(s"Cannot send email ${email.emailId} to ${email.recipient} via GovNotify. Error during send: $govNotifySendError. Exhausted Retries")
                       ExhaustedRetries

@@ -58,8 +58,8 @@ class GovNotifyClientWrapperSpec extends CatsEffectSuite {
           apiKey2 = "5678"
         }
       """),
-      null,
-      null
+      null //,
+      // null
     )
 
     val fakeNotifyClient1 = new NotificationClient("") {
@@ -107,8 +107,8 @@ class GovNotifyClientWrapperSpec extends CatsEffectSuite {
           apiKey2 = ""
         }
       """),
-      null,
-      null
+      null //,
+      // null
     )
 
     val govNotifyClient = new GovNotifyClientWrapper()(testAppContext) {
