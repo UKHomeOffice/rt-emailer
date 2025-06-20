@@ -64,6 +64,7 @@ assemblyMergeStrategy in assembly := {
   case PathList("javax", "activation", _*) => MergeStrategy.first
   case PathList("javax", "mail", _*) => MergeStrategy.first
   case PathList("com", "sun", _*) => MergeStrategy.first
+  case "logback.xml" => MergeStrategy.first
   case "META-INF/io.netty.versions.properties" => MergeStrategy.first
   case "META-INF/mime.types" => MergeStrategy.first
   case "META-INF/mailcap.default" => MergeStrategy.first
