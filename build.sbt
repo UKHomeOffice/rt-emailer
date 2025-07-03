@@ -29,7 +29,7 @@ lazy val root = (project in file("."))
       "org.scalameta"   %% "munit"               % MunitVersion           % Test,
       "org.typelevel"   %% "munit-cats-effect-3" % MunitCatsEffectVersion % Test,
       "ch.qos.logback"  %  "logback-classic"     % LogbackVersion         % Runtime,
-      "uk.gov.homeoffice" %% "rtp-email-lib"     % "4.0.11-g473574e",
+      "uk.gov.homeoffice" %% "rtp-email-lib"     % "4.0.12-gc336ec4",
       "com.typesafe"     % "config"              % "1.4.3",
       "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5",
       "com.github.eikek" %% "emil-common" % "0.19.0",
