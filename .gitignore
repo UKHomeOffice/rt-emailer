@@ -1,0 +1,35 @@
+# sbt build outputs
+target/
+project/target/
+project/project/
+
+# sbt plugin generated
+project/metals.sbt
+
+# Metals (Scala language server)
+.metals/
+.bloop/
+project/.bloop/
+
+# IDE
+.vscode/
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Compiled class files
+*.class
+
+# Distribution / packaging
+*.jar
+*.war
+*.zip
+*.tar.gz

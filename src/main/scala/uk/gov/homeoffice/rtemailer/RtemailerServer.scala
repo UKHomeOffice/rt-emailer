@@ -44,7 +44,6 @@ object RtemailerServer extends StrictLogging {
 
     processLock.use { _ =>
       database.getWaitingEmails()
-        .evalTap { (email :Email) => IO.delay(logger.info(s"Sending email to ${email.recipient}")) }
         .evalMap { case email => emailer.sendMessage(email).map { emailSentResult => (email, emailSentResult) } }
         .evalMap { case (email, emailSentResult) => database.updateStatus(email, emailSentResult) }
         .compile
