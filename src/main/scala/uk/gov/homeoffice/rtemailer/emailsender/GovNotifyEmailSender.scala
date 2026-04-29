@@ -200,7 +200,7 @@ class GovNotifyEmailSender(implicit appContext :AppContext) extends StrictLoggin
 
         allPersonalisations.value.flatMap {
           case Left(err) =>
-            logger.error(s"Cannot send email ${email.emailId} to ${email.recipient} due to error: $err")
+            logger.error(s"Cannot send email ${email.emailId} due to error: $err")
             IO.delay(Waiting)
           case Right(allPersonalisations) =>
             if appContext.config.getBoolean("app.templateDebug") then {
@@ -221,25 +221,25 @@ class GovNotifyEmailSender(implicit appContext :AppContext) extends StrictLoggin
                       logger.info(s"Email sent via Gov Notify. Notification Id: ${response.getNotificationId()}, gov notify reference: ${govNotifyRef}, email table id: ${email.emailId}, template: ${response.getTemplateId()}, template version: ${response.getTemplateVersion()}")
                       Sent(newText = Some(templatePreview.getBody()), newHtml = templatePreview.getHtml().asScalaOption())
                     case Left(govNotifySendError) if govNotifySendError.transient && exhaustedRetries(email) =>
-                      logger.error(s"Cannot send email ${email.emailId} to ${email.recipient} via GovNotify. Error during send: $govNotifySendError. Exhausted Retries")
+                      logger.error(s"Cannot send email ${email.emailId}. Error during send: $govNotifySendError. Exhausted Retries")
                       ExhaustedRetries
                     case Left(govNotifySendError) if govNotifySendError.transient =>
-                      logger.error(s"Cannot send email ${email.emailId} to ${email.recipient} via GovNotify. Error during send: $govNotifySendError")
+                      logger.error(s"Cannot send email ${email.emailId}. Error during send: $govNotifySendError")
                       Waiting
                     case Left(govNotifySendError) if !govNotifySendError.transient =>
                       logger.error(s"Cannot send email ${email.emailId} via GovNotify due to partial success/failure. To avoid spamming, delivery will not be retried. Error during send: $govNotifySendError")
                       PartialError(govNotifySendError.message)
                 }
               case Left(govNotifyTemplateError) =>
-                logger.error(s"Cannot send email ${email.emailId} to ${email.recipient} via GovNotify. Error generating template preview: $govNotifyTemplateError")
+                logger.error(s"Cannot send email ${email.emailId}. Error generating template preview: $govNotifyTemplateError")
                 IO.delay(Waiting)
           }
         }
       case Right(None) =>
-        logger.error(s"Cannot send email ${email.emailId} to ${email.recipient} via GovNotify as no template is found")
+        logger.error(s"Cannot send email ${email.emailId} via GovNotify as no template is found")
         IO.delay(Waiting)
       case Left(err) =>
-        logger.error(s"Cannot send email ${email.emailId} to ${email.recipient} due to error fetching template: $err")
+        logger.error(s"Cannot send email ${email.emailId} due to error fetching template: $err")
         IO.delay(Waiting)
     }
   }
