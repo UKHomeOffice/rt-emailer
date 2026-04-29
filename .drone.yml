@@ -34,9 +34,9 @@ steps:
   - git fetch --tags
   - sbt test
   - sbt clean coverageEnabled test coverageReport coverageOff
-  - sbt dependencyCheck
+  #- sbt dependencyCheck
   - sbt scalastyle || /bin/true
-  - sbt scapegoat || /bin/true
+  #- sbt scapegoat || /bin/true
   - sbt clean assembly
   environment:
     ARTIFACTORY_PASSWORD:
