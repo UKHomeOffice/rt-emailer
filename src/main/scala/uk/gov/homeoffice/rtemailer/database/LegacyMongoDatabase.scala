@@ -1,26 +1,20 @@
 package uk.gov.homeoffice.rtemailer.database
 
-import uk.gov.homeoffice.rtemailer.model._
-import uk.gov.homeoffice.domain.core.email.{ Email, EmailRepository }
-import uk.gov.homeoffice.domain.core.email.EmailStatus._
-import uk.gov.homeoffice.rtemailer.model._
 import cats.effect.IO
-import uk.gov.homeoffice.rtemailer.Util._
-import java.net.InetAddress
-
-import uk.gov.homeoffice.domain.core.lock._
-import uk.gov.homeoffice.mongo._
-import uk.gov.homeoffice.mongo.model._
-import uk.gov.homeoffice.mongo.repository._
-import uk.gov.homeoffice.mongo.casbah._
-import uk.gov.homeoffice.mongo.casbah.syntax._
-
-import org.mongodb.scala.bson.Document
-import org.bson.types.ObjectId
-
-import scala.util.Try
 import com.typesafe.config.Config
 import com.typesafe.scalalogging.StrictLogging
+import org.bson.types.ObjectId
+import uk.gov.homeoffice.domain.core.email.EmailStatus._
+import uk.gov.homeoffice.domain.core.email.{ Email, EmailRepository }
+import uk.gov.homeoffice.domain.core.lock._
+import uk.gov.homeoffice.mongo._
+import uk.gov.homeoffice.mongo.casbah._
+import uk.gov.homeoffice.mongo.repository._
+import uk.gov.homeoffice.rtemailer.Util._
+import uk.gov.homeoffice.rtemailer.model._
+
+import java.net.InetAddress
+import scala.util.Try
 
 class LegacyMongoDatabase(config: Config) extends Database with StrictLogging {
 
@@ -154,7 +148,7 @@ class LegacyMongoDatabase(config: Config) extends Database with StrictLogging {
                 )
                 GovNotifyError(s"Database error looking up parent case from case: ${exc.getMessage()}")
               }
-            case Left(exc) =>
+            case Left(_) =>
               logger.info(s"parentRegisteredTravellerNumber was not a string (${caseObj.get("_id")})")
               Right(None)
           }

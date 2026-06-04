@@ -1,11 +1,10 @@
 package uk.gov.homeoffice.rtemailer
 
 import cats.effect.IO
-import org.http4s._
-import org.http4s.implicits._
+import io.circe.parser._
 import munit.CatsEffectSuite
 import org.http4s._
-import io.circe.parser._
+import org.http4s.implicits._
 import uk.gov.homeoffice.rtemailer.model.AppStatus
 
 class RoutesSpec extends CatsEffectSuite {

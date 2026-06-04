@@ -1,15 +1,15 @@
 package uk.gov.homeoffice.rtemailer
 
 import cats.effect.IO
+import cats.effect.kernel.Resource
 import com.comcast.ip4s._
-import org.http4s.ember.server.EmberServerBuilder
 import com.typesafe.scalalogging.StrictLogging
-import uk.gov.homeoffice.domain.core.email.Email
+import org.http4s.ember.server.EmberServerBuilder
 import uk.gov.homeoffice.domain.core.email.EmailStatus._
-import scala.concurrent.duration.Duration
 import uk.gov.homeoffice.rtemailer.emailsender._
 import uk.gov.homeoffice.rtemailer.model.AppContext
-import cats.effect.kernel.Resource
+
+import scala.concurrent.duration.Duration
 
 object RtemailerServer extends StrictLogging {
 

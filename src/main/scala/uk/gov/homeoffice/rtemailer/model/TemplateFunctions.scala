@@ -2,6 +2,7 @@ package uk.gov.homeoffice.rtemailer.model
 
 import org.joda.time._
 import org.joda.time.format.DateTimeFormat
+
 import scala.annotation.tailrec
 import scala.util.Try
 

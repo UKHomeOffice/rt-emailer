@@ -1,12 +1,13 @@
 package uk.gov.homeoffice.rtemailer.govnotify
 
+import cats.data.EitherT
 import cats.effect._
 import cats.implicits._
-import cats.data.EitherT
 import com.typesafe.scalalogging.StrictLogging
-import uk.gov.service.notify.{ NotificationClient, SendEmailResponse, Template, TemplatePreview }
-import uk.gov.homeoffice.rtemailer.model._
 import uk.gov.homeoffice.domain.core.email.Email
+import uk.gov.homeoffice.rtemailer.model._
+import uk.gov.service.notify.{ NotificationClient, SendEmailResponse, Template, TemplatePreview }
+
 import scala.collection.JavaConverters._
 import scala.util.Try
 

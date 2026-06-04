@@ -4,9 +4,9 @@ import cats.effect.IO
 import com.typesafe.config.Config
 import uk.gov.homeoffice.domain.core.email.Email
 import uk.gov.homeoffice.domain.core.email.EmailStatus._
-import uk.gov.homeoffice.rtemailer.model._
-import uk.gov.homeoffice.mongo.casbah.MongoDBObject
 import uk.gov.homeoffice.domain.core.lock.Lock
+import uk.gov.homeoffice.mongo.casbah.MongoDBObject
+import uk.gov.homeoffice.rtemailer.model._
 
 trait Database {
   val name: String

@@ -1,20 +1,17 @@
 package uk.gov.homeoffice.rtemailer.emailsender
 
-import munit.CatsEffectSuite
 import cats.effect._
-import org.joda.time.DateTime
 import com.typesafe.config.ConfigFactory
-import uk.gov.homeoffice.rtemailer.model.AppContext
-import uk.gov.homeoffice.rtemailer.database.Database
+import munit.CatsEffectSuite
 import org.bson.types.ObjectId
-
-import uk.gov.homeoffice.mongo.casbah.MongoDBObject
-import uk.gov.homeoffice.mongo.casbah.MongoDBList
+import org.joda.time.DateTime
 import uk.gov.homeoffice.domain.core.email.Email
-import uk.gov.homeoffice.domain.core.lock._
 import uk.gov.homeoffice.domain.core.email.EmailStatus._
-import uk.gov.homeoffice.rtemailer.model._
+import uk.gov.homeoffice.domain.core.lock._
+import uk.gov.homeoffice.mongo.casbah.MongoDBObject
+import uk.gov.homeoffice.rtemailer.database.Database
 import uk.gov.homeoffice.rtemailer.govnotify._
+import uk.gov.homeoffice.rtemailer.model.{ AppContext, _ }
 import uk.gov.service.notify.{ SendEmailResponse, Template, TemplatePreview }
 
 class govNotifyEmailSenderSpec extends CatsEffectSuite {

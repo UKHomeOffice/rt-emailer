@@ -7,7 +7,7 @@ lazy val root = (project in file("."))
     organization := "uk.gov.homeoffice",
     name := "rt-emailer",
     scalaVersion := "3.7.1",
-    libraryDependencies ++= AppDependencies.all,
+    libraryDependencies ++= Dependencies.all,
     testFrameworks += new TestFramework("munit.Framework")
   )
   .settings(AppGitVersioningSettings.all)
@@ -15,4 +15,13 @@ lazy val root = (project in file("."))
 
 buildInfoOptions += BuildInfoOption.BuildTime
 
-scalacOptions ++= Seq("-new-syntax", "-rewrite", "source 3.7-migration")
+ThisBuild / semanticdbEnabled := true
+ThisBuild / semanticdbVersion := scalafixSemanticdb.revision
+ThisBuild / scalafmtOnCompile := true
+ThisBuild / scalafixOnCompile := true
+
+scalacOptions ++= Seq(
+  "-explain",
+  "-Wunused:all",
+  "-Wunused:imports"
+)

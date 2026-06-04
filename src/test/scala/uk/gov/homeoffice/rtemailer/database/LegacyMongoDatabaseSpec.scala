@@ -1,14 +1,12 @@
 package uk.gov.homeoffice.rtemailer.database
 
-import munit.CatsEffectSuite
-import cats.effect._
-import org.joda.time.DateTime
 import com.typesafe.config.ConfigFactory
-import uk.gov.homeoffice.rtemailer.model.AppContext
+import munit.CatsEffectSuite
 import org.bson.types.ObjectId
-import uk.gov.homeoffice.rtemailer.emailsender._
-
+import org.joda.time.DateTime
 import uk.gov.homeoffice.mongo.casbah._
+import uk.gov.homeoffice.rtemailer.emailsender._
+import uk.gov.homeoffice.rtemailer.model.AppContext
 
 class LegacyMongoDatabaseSpec extends CatsEffectSuite {
 

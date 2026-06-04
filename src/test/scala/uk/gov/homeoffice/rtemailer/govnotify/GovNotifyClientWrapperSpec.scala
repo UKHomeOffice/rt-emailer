@@ -1,17 +1,16 @@
 package uk.gov.homeoffice.rtemailer.govnotify
 
-import munit.CatsEffectSuite
 import cats.effect._
+import com.typesafe.config.ConfigFactory
+import munit.CatsEffectSuite
 import org.bson.types.ObjectId
 import org.joda.time.DateTime
-import com.typesafe.config.ConfigFactory
-import uk.gov.homeoffice.rtemailer.model.AppContext
-import uk.gov.service.notify.{ NotificationClient, Template, TemplateList }
-import scala.collection.JavaConverters._
-import uk.gov.homeoffice.mongo.casbah.MongoDBObject
 import uk.gov.homeoffice.domain.core.email.Email
-import uk.gov.homeoffice.rtemailer.model._
-import uk.gov.service.notify.{ SendEmailResponse, Template }
+import uk.gov.homeoffice.mongo.casbah.MongoDBObject
+import uk.gov.homeoffice.rtemailer.model.{ AppContext, _ }
+import uk.gov.service.notify.{ NotificationClient, SendEmailResponse, Template, TemplateList }
+
+import scala.collection.JavaConverters._
 
 class GovNotifyClientWrapperSpec extends CatsEffectSuite {
 

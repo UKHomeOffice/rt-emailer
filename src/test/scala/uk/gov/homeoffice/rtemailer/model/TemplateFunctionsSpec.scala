@@ -1,9 +1,9 @@
 package uk.gov.homeoffice.rtemailer.model
 
+import com.typesafe.config.ConfigFactory
 import munit.CatsEffectSuite
 import org.joda.time._
 import org.joda.time.format.DateTimeFormat
-import com.typesafe.config.ConfigFactory
 
 class TemplateFunctionsSpec extends CatsEffectSuite {
 

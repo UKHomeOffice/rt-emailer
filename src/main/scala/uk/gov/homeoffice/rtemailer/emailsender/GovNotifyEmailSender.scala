@@ -2,16 +2,16 @@ package uk.gov.homeoffice.rtemailer.emailsender
 
 import cats.data.EitherT
 import cats.effect._
+import com.typesafe.scalalogging.StrictLogging
 import uk.gov.homeoffice.domain.core.email.Email
 import uk.gov.homeoffice.domain.core.email.EmailStatus._
-import com.typesafe.scalalogging.StrictLogging
 import uk.gov.homeoffice.mongo.casbah.MongoDBObject
-import scala.collection.JavaConverters._
-import scala.util.Try
-import scala.concurrent.duration.Duration
-
-import uk.gov.homeoffice.rtemailer.model._
 import uk.gov.homeoffice.rtemailer.govnotify._
+import uk.gov.homeoffice.rtemailer.model._
+
+import scala.collection.JavaConverters._
+import scala.concurrent.duration.Duration
+import scala.util.Try
 
 /*
  * GovNotify feature.

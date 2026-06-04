@@ -1,11 +1,10 @@
 package uk.gov.homeoffice.rtemailer
 
 import munit.CatsEffectSuite
-import java.util.Optional
-import uk.gov.homeoffice.mongo.casbah.MongoDBObject
-import uk.gov.homeoffice.mongo.casbah.MongoDBList
-
+import uk.gov.homeoffice.mongo.casbah.{ MongoDBList, MongoDBObject }
 import uk.gov.homeoffice.rtemailer.model._
+
+import java.util.Optional
 
 class UtilSpec extends CatsEffectSuite {
   import Util._

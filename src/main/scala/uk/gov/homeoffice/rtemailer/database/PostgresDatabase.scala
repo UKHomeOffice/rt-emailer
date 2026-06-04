@@ -1,30 +1,23 @@
 package uk.gov.homeoffice.rtemailer.database
 
-import uk.gov.homeoffice.rtemailer.model._
+import cats.effect.IO
+import cats.effect.kernel._
+import cats.effect.std.Console
+import com.typesafe.config.Config
+import com.typesafe.scalalogging.StrictLogging
+import io.circe._
+import natchez.Trace.Implicits.noop
+import org.bson.types.ObjectId
+import org.joda.time.DateTime
+import skunk._
+import skunk.circe.codec.json.jsonb
+import skunk.codec.all._
+import skunk.implicits._
 import uk.gov.homeoffice.domain.core.email.Email
 import uk.gov.homeoffice.domain.core.email.EmailStatus._
-import uk.gov.homeoffice.rtemailer.model._
-import uk.gov.homeoffice.mongo.casbah.{ MongoDBList, MongoDBObject }
-import com.mongodb.DBObject
-import org.bson.types.ObjectId
-
-import cats.effect.IO
-import com.typesafe.scalalogging.StrictLogging
-import org.joda.time.DateTime
 import uk.gov.homeoffice.domain.core.lock._
-
-import io.circe._
-import cats.effect.kernel._
-
-import skunk._
-import skunk.implicits._
-import skunk.codec.all._
-import skunk.circe.codec.json.jsonb
-
-import natchez.Trace.Implicits.noop
-import cats.effect.std.Console
-
-import com.typesafe.config.Config
+import uk.gov.homeoffice.mongo.casbah.{ MongoDBList, MongoDBObject }
+import uk.gov.homeoffice.rtemailer.model._
 
 class PostgresDatabase(config: Config) extends Database with StrictLogging {
   implicit val consoleForIO: Console[IO] = Console.make[IO]
@@ -65,7 +58,7 @@ class PostgresDatabase(config: Config) extends Database with StrictLogging {
         case j if j.isArray  =>
           j.asArray.foreach { (arr: Vector[Json]) =>
             val mongoItems = arr.toList.map((arrItem: Json) => jsonToMongo(arrItem))
-            builder += (key -> MongoDBList(mongoItems: _*))
+            builder += (key -> MongoDBList(mongoItems*))
           }
         case j if j.isObject =>
           j.asObject.foreach { _ =>

@@ -1,10 +1,8 @@
 package uk.gov.homeoffice.rtemailer
 
-import uk.gov.homeoffice.mongo.casbah.MongoDBObject
-import org.joda.time.DateTime
 import org.bson.types.ObjectId
-import uk.gov.homeoffice.mongo.casbah.MongoDBList
-
+import org.joda.time.DateTime
+import uk.gov.homeoffice.mongo.casbah.{ MongoDBList, MongoDBObject }
 import uk.gov.homeoffice.rtemailer.model._
 
 object Util {

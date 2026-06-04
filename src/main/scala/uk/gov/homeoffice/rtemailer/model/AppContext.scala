@@ -1,7 +1,7 @@
 package uk.gov.homeoffice.rtemailer.model
 
-import org.joda.time.DateTime
 import com.typesafe.config.Config
+import org.joda.time.DateTime
 import uk.gov.homeoffice.rtemailer.database.Database
 
 case class AppContext(

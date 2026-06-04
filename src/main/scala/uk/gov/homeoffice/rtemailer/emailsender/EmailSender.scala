@@ -1,9 +1,9 @@
 package uk.gov.homeoffice.rtemailer.emailsender
 
 import cats.effect._
+import com.typesafe.scalalogging.StrictLogging
 import uk.gov.homeoffice.domain.core.email.Email
 import uk.gov.homeoffice.domain.core.email.EmailStatus._
-import com.typesafe.scalalogging.StrictLogging
 import uk.gov.homeoffice.rtemailer.model.AppContext
 
 class EmailSender(implicit appContext: AppContext) extends StrictLogging {
