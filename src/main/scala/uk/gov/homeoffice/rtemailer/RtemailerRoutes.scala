@@ -10,7 +10,7 @@ import uk.gov.homeoffice.rtemailer.model.AppStatus
 object RtemailerRoutes {
 
   def allRoutes[F[_]: Sync](): HttpRoutes[F] = {
-    val dsl = new Http4sDsl[F]{}
+    val dsl = new Http4sDsl[F] {}
     import dsl._
 
     HttpRoutes.of[F] {

@@ -38,7 +38,8 @@ class LegacyMongoDatabaseSpec extends CatsEffectSuite {
       "subject" -> "Under 18"
     )
 
-    val config = ConfigFactory.parseString("""
+    val config = ConfigFactory
+      .parseString("""
       app {
         templateDebug = false
       }
@@ -65,14 +66,15 @@ class LegacyMongoDatabaseSpec extends CatsEffectSuite {
           rt_new_application_fee = 7000
         }
       }
-    """).resolve()
+    """)
+      .resolve()
 
     val legacyMongoDatabase = new LegacyMongoDatabase(config)
 
     val appContext = AppContext(
       nowF = { () => now },
       config = config,
-      database = legacyMongoDatabase,
+      database = legacyMongoDatabase
     )
 
     legacyMongoDatabase.getCollection("submissions").insertOne(childCaseObject)
@@ -81,7 +83,9 @@ class LegacyMongoDatabaseSpec extends CatsEffectSuite {
 
     // Test begins here.
     val govNotifyEmailSender = new GovNotifyEmailSender()(appContext)
-    val result = govNotifyEmailSender.buildParentPersonalisations(List("parent:name"), Some(childCaseObject), "my template").unsafeRunSync()
+    val result = govNotifyEmailSender
+      .buildParentPersonalisations(List("parent:name"), Some(childCaseObject), "my template")
+      .unsafeRunSync()
     assertEquals(result.right.get, Map("parent:name" -> "Jullian"))
   }
 }

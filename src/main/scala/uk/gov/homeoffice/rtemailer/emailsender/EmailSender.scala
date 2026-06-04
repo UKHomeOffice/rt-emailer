@@ -6,9 +6,9 @@ import uk.gov.homeoffice.domain.core.email.EmailStatus._
 import com.typesafe.scalalogging.StrictLogging
 import uk.gov.homeoffice.rtemailer.model.AppContext
 
-class EmailSender(implicit appContext :AppContext) extends StrictLogging {
+class EmailSender(implicit appContext: AppContext) extends StrictLogging {
 
-  def sendMessage(email: Email) :IO[EmailSentResult] = {
+  def sendMessage(email: Email): IO[EmailSentResult] = {
 
     val govNotifyEmailSender = new GovNotifyEmailSender()
 
@@ -21,10 +21,9 @@ class EmailSender(implicit appContext :AppContext) extends StrictLogging {
         // of 90+ emails, SMTP code path can be deprecated).
         logger.error(s"GovNotify.useGovNotify returned an error. Waiting for it to recover: $govNotifyError")
         IO.delay(Waiting)
-      case Right(true) => govNotifyEmailSender.sendMessage(email)
+      case Right(true)  => govNotifyEmailSender.sendMessage(email)
       case Right(false) => new SMTPEmailSender().sendMessage(email)
     }
   }
 
 }
-

@@ -22,12 +22,12 @@ class RoutesSpec extends CatsEffectSuite {
         val responseText = new String(response.body.compile.toVector.unsafeRunSync().toArray, "UTF-8")
         parse(responseText) match {
           case Left(parseErr) => fail(s"Unable to parse response from /status as json: $parseErr")
-          case Right(obj) =>
+          case Right(obj)     =>
             obj.hcursor.downField("appName").as[String] match {
-              case Left(_) => fail(s"Unable to appName in /status")
+              case Left(_)        => fail(s"Unable to appName in /status")
               case Right(appName) =>
                 assertEquals(appName, "rt-emailer")
-                
+
             }
         }
         assert(response.status.code == 200)

@@ -7,18 +7,20 @@ import com.typesafe.config.ConfigFactory
 
 class TemplateFunctionsSpec extends CatsEffectSuite {
 
-  val templateFunctions = new TemplateFunctions()(new AppContext(
-    nowF = () => DateTime.parse("2024-01-01T01:02:03"),
-    ConfigFactory.parseString("""
+  val templateFunctions = new TemplateFunctions()(
+    new AppContext(
+      nowF = () => DateTime.parse("2024-01-01T01:02:03"),
+      ConfigFactory.parseString("""
       app {
         updateTokenSecret = "bonjour mon ami"
       }
     """),
-    null
-  ))
+      null
+    )
+  )
 
   def testFunc = templateFunctions.applyFunction _
-  def testChain(input :TemplateLookup, raw :String) = templateFunctions.applyFunctions(input, raw.split(":").toList)
+  def testChain(input: TemplateLookup, raw: String) = templateFunctions.applyFunctions(input, raw.split(":").toList)
 
   test("right") {
     assertEquals(testFunc(TString("hello"), "right2"), Right(TString("lo")))
@@ -26,37 +28,67 @@ class TemplateFunctionsSpec extends CatsEffectSuite {
   }
 
   test("minus days") {
-    assertEquals(testFunc(TDate(DateTime.parse("2023-01-01T00:00:00Z")), "minusDays2"), Right(TDate(DateTime.parse("2022-12-30T00:00:00Z"))))
-    assertEquals(testFunc(TDate(DateTime.parse("2023-09-07T00:00:00Z")), "minusDays6"), Right(TDate(DateTime.parse("2023-09-01T00:00:00Z"))))
+    assertEquals(
+      testFunc(TDate(DateTime.parse("2023-01-01T00:00:00Z")), "minusDays2"),
+      Right(TDate(DateTime.parse("2022-12-30T00:00:00Z")))
+    )
+    assertEquals(
+      testFunc(TDate(DateTime.parse("2023-09-07T00:00:00Z")), "minusDays6"),
+      Right(TDate(DateTime.parse("2023-09-01T00:00:00Z")))
+    )
   }
 
   test("minus weeks") {
-    assertEquals(testFunc(TDate(DateTime.parse("2023-01-01T00:00:00Z")), "minusWeeks1"), Right(TDate(DateTime.parse("2022-12-25T00:00:00Z"))))
+    assertEquals(
+      testFunc(TDate(DateTime.parse("2023-01-01T00:00:00Z")), "minusWeeks1"),
+      Right(TDate(DateTime.parse("2022-12-25T00:00:00Z")))
+    )
   }
 
   test("minus months") {
-    assertEquals(testFunc(TDate(DateTime.parse("2023-04-30T00:00:00Z")), "minusMonths2"), Right(TDate(DateTime.parse("2023-02-28T00:00:00Z"))))
+    assertEquals(
+      testFunc(TDate(DateTime.parse("2023-04-30T00:00:00Z")), "minusMonths2"),
+      Right(TDate(DateTime.parse("2023-02-28T00:00:00Z")))
+    )
   }
 
   test("minus years") {
-    assertEquals(testFunc(TDate(DateTime.parse("2023-04-30T00:00:00Z")), "minusYears25"), Right(TDate(DateTime.parse("1998-04-30T00:00:00Z"))))
+    assertEquals(
+      testFunc(TDate(DateTime.parse("2023-04-30T00:00:00Z")), "minusYears25"),
+      Right(TDate(DateTime.parse("1998-04-30T00:00:00Z")))
+    )
   }
 
   test("plus days") {
-    assertEquals(testFunc(TDate(DateTime.parse("2022-12-30T00:00:00Z")), "plusDays2"), Right(TDate(DateTime.parse("2023-01-01T00:00:00Z"))))
-    assertEquals(testFunc(TDate(DateTime.parse("2022-09-02T00:00:00Z")), "plusDays6"), Right(TDate(DateTime.parse("2022-09-08T00:00:00Z"))))
+    assertEquals(
+      testFunc(TDate(DateTime.parse("2022-12-30T00:00:00Z")), "plusDays2"),
+      Right(TDate(DateTime.parse("2023-01-01T00:00:00Z")))
+    )
+    assertEquals(
+      testFunc(TDate(DateTime.parse("2022-09-02T00:00:00Z")), "plusDays6"),
+      Right(TDate(DateTime.parse("2022-09-08T00:00:00Z")))
+    )
   }
 
   test("plus weeks") {
-    assertEquals(testFunc(TDate(DateTime.parse("2023-01-01T00:00:00Z")), "plusWeeks1"), Right(TDate(DateTime.parse("2023-01-08T00:00:00Z"))))
+    assertEquals(
+      testFunc(TDate(DateTime.parse("2023-01-01T00:00:00Z")), "plusWeeks1"),
+      Right(TDate(DateTime.parse("2023-01-08T00:00:00Z")))
+    )
   }
 
   test("plus months") {
-    assertEquals(testFunc(TDate(DateTime.parse("2023-04-30T00:00:00Z")), "plusMonths2"), Right(TDate(DateTime.parse("2023-06-30T00:00:00Z"))))
+    assertEquals(
+      testFunc(TDate(DateTime.parse("2023-04-30T00:00:00Z")), "plusMonths2"),
+      Right(TDate(DateTime.parse("2023-06-30T00:00:00Z")))
+    )
   }
 
   test("plus years") {
-    assertEquals(testFunc(TDate(DateTime.parse("2023-04-30T00:00:00Z")), "plusYears1"), Right(TDate(DateTime.parse("2024-04-30T00:00:00Z"))))
+    assertEquals(
+      testFunc(TDate(DateTime.parse("2023-04-30T00:00:00Z")), "plusYears1"),
+      Right(TDate(DateTime.parse("2024-04-30T00:00:00Z")))
+    )
   }
 
   test("beforeNow") {
@@ -75,9 +107,18 @@ class TemplateFunctionsSpec extends CatsEffectSuite {
   test("chained date functions") {
     assertEquals(testFunc(TDate(DateTime.parse("2024-01-01T00:00:00Z")), "beforeNow"), Right(TString("yes")))
     assertEquals(testChain(TDate(DateTime.parse("2024-01-01T00:00:00Z")), "beforeNow:not"), Right(TString("no")))
-    assertEquals(testChain(TDate(DateTime.parse("2024-01-01T00:00:00Z")), "plusYears1:beforeNow:not"), Right(TString("yes")))
-    assertEquals(testChain(TDate(DateTime.parse("2024-01-01T00:00:00Z")), "plusYears1:beforeNow:not"), Right(TString("yes")))
-    assertEquals(testChain(TDate(DateTime.parse("2024-01-01T00:00:00Z")), "plusYears1:date"), Right(TString("01 January 2025")))
+    assertEquals(
+      testChain(TDate(DateTime.parse("2024-01-01T00:00:00Z")), "plusYears1:beforeNow:not"),
+      Right(TString("yes"))
+    )
+    assertEquals(
+      testChain(TDate(DateTime.parse("2024-01-01T00:00:00Z")), "plusYears1:beforeNow:not"),
+      Right(TString("yes"))
+    )
+    assertEquals(
+      testChain(TDate(DateTime.parse("2024-01-01T00:00:00Z")), "plusYears1:date"),
+      Right(TString("01 January 2025"))
+    )
   }
 
   test("greater than (gt)") {
@@ -167,16 +208,21 @@ class TemplateFunctionsSpec extends CatsEffectSuite {
   }
 
   test("encrypted token test") {
-    assertEquals(testChain(TString("abcdefg"), "accountToken"), Right(TString("6d38446695e7c87d8895a2eb388b44ea841bed93236034366c8cc7baef18c21c")))
+    assertEquals(
+      testChain(TString("abcdefg"), "accountToken"),
+      Right(TString("6d38446695e7c87d8895a2eb388b44ea841bed93236034366c8cc7baef18c21c"))
+    )
   }
 
-
   test("parseDate") {
-    def parseDT(in :String) :DateTime = DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:mm:ssZ").parseDateTime(in).withZone(DateTimeZone.UTC)
+    def parseDT(in: String): DateTime =
+      DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:mm:ssZ").parseDateTime(in).withZone(DateTimeZone.UTC)
     assertEquals(testFunc(TString("2024-01-02"), "parseDate"), Right(TDate(parseDT("2024-01-02T00:00:00Z"))))
     assertEquals(testFunc(TString("2024-01-02T00:00:00Z"), "parseDate"), Right(TDate(parseDT("2024-01-02T00:00:00Z"))))
     assertEquals(testFunc(TString("2/1/2024"), "parseDate"), Right(TDate(parseDT("2024-01-02T00:00:00Z"))))
-    assertEquals(testFunc(TString("broken"), "parseDate"), Left(GovNotifyError("can't call parseDate on broken. Bad date format")))
+    assertEquals(
+      testFunc(TString("broken"), "parseDate"),
+      Left(GovNotifyError("can't call parseDate on broken. Bad date format"))
+    )
   }
 }
-

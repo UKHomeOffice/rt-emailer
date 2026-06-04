@@ -80,4 +80,3 @@ class PostgresDatabaseSpec extends CatsEffectSuite {
   }
 
 }
-

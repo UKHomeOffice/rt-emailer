@@ -15,7 +15,7 @@ import uk.gov.homeoffice.domain.core.lock._
 import uk.gov.homeoffice.domain.core.email.EmailStatus._
 import uk.gov.homeoffice.rtemailer.model._
 import uk.gov.homeoffice.rtemailer.govnotify._
-import uk.gov.service.notify.{Template, TemplatePreview, SendEmailResponse}
+import uk.gov.service.notify.{ SendEmailResponse, Template, TemplatePreview }
 
 class govNotifyEmailSenderSpec extends CatsEffectSuite {
 
@@ -42,13 +42,15 @@ class govNotifyEmailSenderSpec extends CatsEffectSuite {
 
   val fakeNotifyWrapper = new GovNotifyClientWrapper()(testAppContext) {
 
-    override def getAllTemplates() :IO[Either[GovNotifyError, List[TemplateWC]]] = {
-      IO.delay(Right(List(
-
-        // This is a realistic example which is explored in the final test
-        // which runs through the complete scenario, including parents, config
-        // and more.
-        TemplateWC(new Template(s"""{
+    override def getAllTemplates(): IO[Either[GovNotifyError, List[TemplateWC]]] =
+      IO.delay(
+        Right(
+          List(
+            // This is a realistic example which is explored in the final test
+            // which runs through the complete scenario, including parents, config
+            // and more.
+            TemplateWC(
+              new Template(s"""{
           "id":"${java.util.UUID.randomUUID()}",
           "name":"HelloEmail",
           "type":"email",
@@ -64,8 +66,11 @@ class govNotifyEmailSenderSpec extends CatsEffectSuite {
             "config:rt_customer_host":"",
             "parent:details.age:minusN18:gt10":""
           }
-        }"""), null),
-        TemplateWC(new Template(s"""{
+        }"""),
+              null
+            ),
+            TemplateWC(
+              new Template(s"""{
           "id":"${java.util.UUID.randomUUID()}",
           "name":"InfoEmail",
           "type":"email",
@@ -75,8 +80,11 @@ class govNotifyEmailSenderSpec extends CatsEffectSuite {
           "body":"hello customer",
           "subject":"hello",
           "personalisation":{"name":"string"}
-        }"""), null),
-        TemplateWC(new Template(s"""{
+        }"""),
+              null
+            ),
+            TemplateWC(
+              new Template(s"""{
           "id":"${java.util.UUID.randomUUID()}",
           "name":"TemplateWithPersonalisations",
           "type":"email",
@@ -86,11 +94,17 @@ class govNotifyEmailSenderSpec extends CatsEffectSuite {
           "body":"hello customer",
           "subject":"hello",
           "personalisation":{"email:personalisations.name":"string"}
-        }"""), null),
-      )))
-    }
+        }"""),
+              null
+            )
+          )
+        )
+      )
 
-    override def generateTemplatePreview(template :TemplateWC, personalisations :Map[String, String]) :IO[Either[GovNotifyError, TemplatePreview]] = {
+    override def generateTemplatePreview(
+        template: TemplateWC,
+        personalisations: Map[String, String]
+    ): IO[Either[GovNotifyError, TemplatePreview]] =
 
       template.getName() match {
         case "HelloEmail" =>
@@ -105,16 +119,19 @@ class govNotifyEmailSenderSpec extends CatsEffectSuite {
             "subject":"end-to-end test scenario",
           }""")
 
-          val stableList = personalisations.map { case (k, v) => s"$k=$v"}.toList.sorted.mkString("\n")
+          val stableList = personalisations.map { case (k, v) => s"$k=$v" }.toList.sorted.mkString("\n")
           val personalisationString = s"Expanded Parameters:\n$stableList"
           templatePreview.setHtml(personalisationString)
           IO.delay(Right(templatePreview))
 
         case x => IO.delay(Left(GovNotifyError(s"bad template: $x")))
       }
-    }
 
-    override def sendEmail(email :Email, template: TemplateWC, allPersonalisations :Map[String, String]) :IO[Either[GovNotifyError, SendEmailResponse]] = {
+    override def sendEmail(
+        email: Email,
+        template: TemplateWC,
+        allPersonalisations: Map[String, String]
+    ): IO[Either[GovNotifyError, SendEmailResponse]] =
 
       email.recipient match {
         case "fail@example.com" =>
@@ -134,7 +151,6 @@ class govNotifyEmailSenderSpec extends CatsEffectSuite {
             }
           }""")))
       }
-    }
   }
 
   val simpleCaseId = new ObjectId().toHexString()
@@ -143,73 +159,163 @@ class govNotifyEmailSenderSpec extends CatsEffectSuite {
 
   val fakeDatabase = new Database {
     override val name = "FakeDB"
-    override def obtainLock() :IO[Lock] = ???
-    override def releaseLock(lock :Lock) :IO[Unit] = ???
-    override def getWaitingEmails(): fs2.Stream[cats.effect.IO,uk.gov.homeoffice.domain.core.email.Email] = fs2.Stream.empty
-    override def updateStatus(email :Email, newStatus :EmailSentResult) :IO[EmailSentResult] = ???
-    override def caseObjectFromEmail(email :Email)(implicit appContext :AppContext) :IO[Either[GovNotifyError, Option[MongoDBObject]]] = {
+    override def obtainLock(): IO[Lock] = ???
+    override def releaseLock(lock: Lock): IO[Unit] = ???
+    override def getWaitingEmails(): fs2.Stream[cats.effect.IO, uk.gov.homeoffice.domain.core.email.Email] =
+      fs2.Stream.empty
+    override def updateStatus(email: Email, newStatus: EmailSentResult): IO[EmailSentResult] = ???
+    override def caseObjectFromEmail(
+        email: Email
+    )(implicit appContext: AppContext): IO[Either[GovNotifyError, Option[MongoDBObject]]] =
       email.caseId match {
-        case None => IO.delay(Right(None))
-        case Some(x) if x == simpleCaseId => IO.delay(Right(Some(MongoDBObject(
-          "name" -> "phillip",
-          "details" -> MongoDBObject("age" -> 17),
-          "boolField" -> "True", // not a bool field, but a string that can be molded into a boolean field
-          "dateOfBirth" -> DateTime.parse("2023-02-01T13:44:55"),
-          "parentRegisteredTravellerNumber" -> "RT65"
-        ))))
-        case Some(_) =>
-          IO.delay(Right(Some(MongoDBObject(
-            "name" -> "phillip",
-            "details" -> MongoDBObject(
-              "age" -> "17",
-              "bool" -> true,
-              "date" -> DateTime.parse("2023-02-01T13:44:55")
+        case None                         => IO.delay(Right(None))
+        case Some(x) if x == simpleCaseId =>
+          IO.delay(
+            Right(
+              Some(
+                MongoDBObject(
+                  "name" -> "phillip",
+                  "details" -> MongoDBObject("age" -> 17),
+                  "boolField" -> "True", // not a bool field, but a string that can be molded into a boolean field
+                  "dateOfBirth" -> DateTime.parse("2023-02-01T13:44:55"),
+                  "parentRegisteredTravellerNumber" -> "RT65"
+                )
+              )
             )
-          ))))
+          )
+        case Some(_) =>
+          IO.delay(
+            Right(
+              Some(
+                MongoDBObject(
+                  "name" -> "phillip",
+                  "details" -> MongoDBObject(
+                    "age" -> "17",
+                    "bool" -> true,
+                    "date" -> DateTime.parse("2023-02-01T13:44:55")
+                  )
+                )
+              )
+            )
+          )
       }
-    }
 
-    override def parentObjectFromCaseObject(caseObj :MongoDBObject)(implicit appContext :AppContext) :IO[Either[GovNotifyError, Option[MongoDBObject]]] = {
+    override def parentObjectFromCaseObject(caseObj: MongoDBObject)(implicit
+        appContext: AppContext
+    ): IO[Either[GovNotifyError, Option[MongoDBObject]]] =
       // pretend scenario
       caseObj.getAs[String]("parentRegisteredTravellerNumber") match {
         case Some(rtn) =>
-          IO.delay(Right(Some(MongoDBObject(
-            "registeredTravellerNumber" -> rtn,
-            "name" -> "mary",
-            "details" -> MongoDBObject("age" -> 66)
-          ))))
+          IO.delay(
+            Right(
+              Some(
+                MongoDBObject(
+                  "registeredTravellerNumber" -> rtn,
+                  "name" -> "mary",
+                  "details" -> MongoDBObject("age" -> 66)
+                )
+              )
+            )
+          )
         case None => IO.delay(Right(None))
       }
-    }
   }
 
-  val govNotifyEmailSender = new GovNotifyEmailSender()(testAppContext.copy(database=fakeDatabase)) {
+  val govNotifyEmailSender = new GovNotifyEmailSender()(testAppContext.copy(database = fakeDatabase)) {
     override lazy val notifyClientWrapper = fakeNotifyWrapper
   }
 
   test("Use Gov Notify if email type matches the name of a template") {
 
-    val testEmail = new Email(new ObjectId().toHexString, None, None, testAppContext.nowF(), "test@example.com", "", "", "", "WAITING", emailType = "HelloEmail", personalisations=None, cc=Nil)
-    val unknownType = new Email(new ObjectId().toHexString, None, None, testAppContext.nowF(), "test@example.com", "", "", "", "WAITING", emailType = "UnknownType", personalisations=None, cc=Nil)
+    val testEmail = new Email(
+      new ObjectId().toHexString,
+      None,
+      None,
+      testAppContext.nowF(),
+      "test@example.com",
+      "",
+      "",
+      "",
+      "WAITING",
+      emailType = "HelloEmail",
+      personalisations = None,
+      cc = Nil
+    )
+    val unknownType = new Email(
+      new ObjectId().toHexString,
+      None,
+      None,
+      testAppContext.nowF(),
+      "test@example.com",
+      "",
+      "",
+      "",
+      "WAITING",
+      emailType = "UnknownType",
+      personalisations = None,
+      cc = Nil
+    )
 
     assertEquals(govNotifyEmailSender.useGovNotify(testEmail).unsafeRunSync(), Right(true))
     assertEquals(govNotifyEmailSender.useGovNotify(unknownType).unsafeRunSync(), Right(false))
   }
 
-  test("use legacy approach if email:personaliations encountered in template but not in email table (backwards-compat feature)") {
-    val emailWithoutPersonalisations = new Email(new ObjectId().toHexString, None, None, testAppContext.nowF(), "test@example.com", "", "", "", "WAITING", emailType = "TemplateWithPersonalisations", Nil, personalisations=None)
-    val emailWithPersonalisations = new Email(new ObjectId().toHexString, None, None, testAppContext.nowF(), "test@example.com", "", "", "", "WAITING", emailType = "TemplateWithPersonalisations", Nil, personalisations=Some(MongoDBObject("x" -> "banana")))
+  test(
+    "use legacy approach if email:personaliations encountered in template but not in email table (backwards-compat feature)"
+  ) {
+    val emailWithoutPersonalisations = new Email(
+      new ObjectId().toHexString,
+      None,
+      None,
+      testAppContext.nowF(),
+      "test@example.com",
+      "",
+      "",
+      "",
+      "WAITING",
+      emailType = "TemplateWithPersonalisations",
+      Nil,
+      personalisations = None
+    )
+    val emailWithPersonalisations = new Email(
+      new ObjectId().toHexString,
+      None,
+      None,
+      testAppContext.nowF(),
+      "test@example.com",
+      "",
+      "",
+      "",
+      "WAITING",
+      emailType = "TemplateWithPersonalisations",
+      Nil,
+      personalisations = Some(MongoDBObject("x" -> "banana"))
+    )
 
     assertEquals(govNotifyEmailSender.useGovNotify(emailWithoutPersonalisations).unsafeRunSync(), Right(false))
     assertEquals(govNotifyEmailSender.useGovNotify(emailWithPersonalisations).unsafeRunSync(), Right(true))
   }
 
   test("extracting parameters from case objects work") {
-    val email = new Email(new ObjectId().toHexString, Some(simpleCaseId), None, testAppContext.nowF(), "test@example.com", "", "", "", "WAITING", emailType = "DefaultTemplate", personalisations=None, cc=Nil)
+    val email = new Email(
+      new ObjectId().toHexString,
+      Some(simpleCaseId),
+      None,
+      testAppContext.nowF(),
+      "test@example.com",
+      "",
+      "",
+      "",
+      "WAITING",
+      emailType = "DefaultTemplate",
+      personalisations = None,
+      cc = Nil
+    )
 
     val testPersonalisations = List("case:name", "case:details.age")
 
-    val result = govNotifyEmailSender.buildCasePersonalisations(testPersonalisations, email, "test-template").unsafeRunSync()
+    val result =
+      govNotifyEmailSender.buildCasePersonalisations(testPersonalisations, email, "test-template").unsafeRunSync()
     result match {
       case Left(err) =>
         fail(s"unexpected failure in test: $err")
@@ -226,14 +332,32 @@ class govNotifyEmailSenderSpec extends CatsEffectSuite {
   }
 
   test("build process can proceed gracefully without case reference") {
-    val email = new Email(new ObjectId().toHexString, None, None, testAppContext.nowF(), "test@example.com", "", "", "", "WAITING", emailType = "XXX", personalisations=None, cc=Nil)
+    val email = new Email(
+      new ObjectId().toHexString,
+      None,
+      None,
+      testAppContext.nowF(),
+      "test@example.com",
+      "",
+      "",
+      "",
+      "WAITING",
+      emailType = "XXX",
+      personalisations = None,
+      cc = Nil
+    )
     val testPersonalisations = List("case:name", "case:details.age")
 
-    val caseResult = govNotifyEmailSender.buildCasePersonalisations(testPersonalisations, email, "test-template").unsafeRunSync()
-    assertEquals(caseResult, Right((Map.empty, None)) :Either[GovNotifyError, (Map[String, String], Option[MongoDBObject])])
+    val caseResult =
+      govNotifyEmailSender.buildCasePersonalisations(testPersonalisations, email, "test-template").unsafeRunSync()
+    assertEquals(
+      caseResult,
+      Right((Map.empty, None)): Either[GovNotifyError, (Map[String, String], Option[MongoDBObject])]
+    )
 
-    val parentResult = govNotifyEmailSender.buildParentPersonalisations(testPersonalisations, None, "test-template").unsafeRunSync()
-    assertEquals(parentResult, Right(Map.empty) :Either[GovNotifyError, Map[String, String]])
+    val parentResult =
+      govNotifyEmailSender.buildParentPersonalisations(testPersonalisations, None, "test-template").unsafeRunSync()
+    assertEquals(parentResult, Right(Map.empty): Either[GovNotifyError, Map[String, String]])
   }
 
   test("extracting parameters from a parent object works (in isolation)") {
@@ -266,19 +390,38 @@ class govNotifyEmailSenderSpec extends CatsEffectSuite {
     val testPersonalisations = List("config:rt_customer_host", "config:rt_new_application_fee", "config:noexists")
 
     val result = govNotifyEmailSender.buildConfigPersonalisations(testPersonalisations, "test-config-template")
-    assertEquals(result, Right(Map(
-      "config:noexists" -> "",
-      "config:rt_new_application_fee" -> "7000",
-      "config:rt_customer_host" -> "https://rt.example.com"
-    )))
+    assertEquals(
+      result,
+      Right(
+        Map(
+          "config:noexists" -> "",
+          "config:rt_new_application_fee" -> "7000",
+          "config:rt_customer_host" -> "https://rt.example.com"
+        )
+      )
+    )
   }
 
   test("when a personalisation is missing, empty string is returned") {
-    val email = new Email(new ObjectId().toHexString, Some(defaultCaseId), None, testAppContext.nowF(), "test@example.com", "", "", "", "WAITING", emailType = "TemplateWithPersonalisations", Nil, personalisations=Some(MongoDBObject("x" -> "banana")))
+    val email = new Email(
+      new ObjectId().toHexString,
+      Some(defaultCaseId),
+      None,
+      testAppContext.nowF(),
+      "test@example.com",
+      "",
+      "",
+      "",
+      "WAITING",
+      emailType = "TemplateWithPersonalisations",
+      Nil,
+      personalisations = Some(MongoDBObject("x" -> "banana"))
+    )
 
     val testPersonalisations = List("case:givenYes", "case:total.sum")
 
-    val result = govNotifyEmailSender.buildCasePersonalisations(testPersonalisations, email, "test-template-empty").unsafeRunSync()
+    val result =
+      govNotifyEmailSender.buildCasePersonalisations(testPersonalisations, email, "test-template-empty").unsafeRunSync()
     result match {
       case Left(err) =>
         fail(s"unexpected failure in test: $err")
@@ -294,7 +437,20 @@ class govNotifyEmailSenderSpec extends CatsEffectSuite {
   }
 
   test("when the field is a date, it becomes formatted/stringified as one") {
-    val email = new Email(new ObjectId().toHexString, Some(defaultCaseId), None, testAppContext.nowF(), "test@example.com", "", "", "", "WAITING", emailType = "TemplateWithPersonalisations", Nil, personalisations=Some(MongoDBObject("time" -> DateTime.parse("2020-03-01T12:33:44Z"))))
+    val email = new Email(
+      new ObjectId().toHexString,
+      Some(defaultCaseId),
+      None,
+      testAppContext.nowF(),
+      "test@example.com",
+      "",
+      "",
+      "",
+      "WAITING",
+      emailType = "TemplateWithPersonalisations",
+      Nil,
+      personalisations = Some(MongoDBObject("time" -> DateTime.parse("2020-03-01T12:33:44Z")))
+    )
 
     val testPersonalisations = List("email:personalisations.time:date")
 
@@ -308,7 +464,20 @@ class govNotifyEmailSenderSpec extends CatsEffectSuite {
   }
 
   test("when the field is a boolean it is formatted as yes/no") {
-    val email = new Email(new ObjectId().toHexString, Some(defaultCaseId), None, testAppContext.nowF(), "test@example.com", "", "", "", "WAITING", emailType = "TemplateWithPersonalisations", Nil, personalisations=Some(MongoDBObject("bool" -> true)))
+    val email = new Email(
+      new ObjectId().toHexString,
+      Some(defaultCaseId),
+      None,
+      testAppContext.nowF(),
+      "test@example.com",
+      "",
+      "",
+      "",
+      "WAITING",
+      emailType = "TemplateWithPersonalisations",
+      Nil,
+      personalisations = Some(MongoDBObject("bool" -> true))
+    )
 
     val testPersonalisations = List("email:personalisations.bool")
 
@@ -337,24 +506,27 @@ class govNotifyEmailSenderSpec extends CatsEffectSuite {
       "",
       "WAITING",
       emailType = "HelloEmail",
-      personalisations=None, 
-      cc=Nil
+      personalisations = None,
+      cc = Nil
     )
 
     assertEquals(govNotifyEmailSender.useGovNotify(helloTypeEmail).unsafeRunSync(), Right(true))
 
     // The main event..
-    
+
     // fakeNotifyWrapper returns a template with all these personalisations.
     // fakeMongoWrapper returns the case object, parent case object, config
     // fakeNotifyWrapper's generateTemplatePreview and sendEmail stringifies this content.
 
-    val expectedResponse = Sent(newText=Some("new text"), newHtml=Some(s"""Expanded Parameters:
+    val expectedResponse = Sent(
+      newText = Some("new text"),
+      newHtml = Some(s"""Expanded Parameters:
 case:boolField:lower:bool:not=no
 case:dateOfBirth:plusYears18:beforeNow=no
 case:name=phillip
 config:rt_customer_host=https://rt.example.com
-parent:details.age:minusN18:gt10=yes"""))
+parent:details.age:minusN18:gt10=yes""")
+    )
 
     assertEquals(govNotifyEmailSender.sendMessage(helloTypeEmail).unsafeRunSync(), expectedResponse)
 
@@ -367,17 +539,16 @@ parent:details.age:minusN18:gt10=yes"""))
       Some(new ObjectId().toHexString()),
       None,
       testAppContext.nowF(),
-      "fail@example.com",     /* this clause triggers our mock emailsender to return an error. */
+      "fail@example.com", /* this clause triggers our mock emailsender to return an error. */
       "",
       "",
       "",
       "WAITING",
       emailType = "HelloEmail",
-      personalisations=None,
-      cc=Nil
+      personalisations = None,
+      cc = Nil
     )
 
     assertEquals(govNotifyEmailSender.sendMessage(helloTypeEmail).unsafeRunSync(), Waiting)
   }
 }
-

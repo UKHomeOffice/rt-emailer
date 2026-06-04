@@ -27,7 +27,7 @@ class UtilSpec extends CatsEffectSuite {
     val testObj = MongoDBObject(
       "string" -> "abc",
       "int" -> 123,
-      "list" -> MongoDBList(List("x", "y", "z") :_*),
+      "list" -> MongoDBList(List("x", "y", "z"): _*),
       "outer" -> MongoDBObject("inner" -> "inside"),
       "dotted.also.works" -> "6",
       "bool" -> true
@@ -43,4 +43,3 @@ class UtilSpec extends CatsEffectSuite {
   }
 
 }
-
