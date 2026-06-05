@@ -1,16 +1,16 @@
 package uk.gov.homeoffice.rtemailer
 
 import cats.effect.Sync
-import org.http4s.HttpRoutes
-import org.http4s.dsl.Http4sDsl
 import io.circe.syntax._
+import org.http4s.HttpRoutes
 import org.http4s.circe._
+import org.http4s.dsl.Http4sDsl
 import uk.gov.homeoffice.rtemailer.model.AppStatus
 
 object RtemailerRoutes {
 
   def allRoutes[F[_]: Sync](): HttpRoutes[F] = {
-    val dsl = new Http4sDsl[F]{}
+    val dsl = new Http4sDsl[F] {}
     import dsl._
 
     HttpRoutes.of[F] {

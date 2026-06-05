@@ -1,11 +1,10 @@
 package uk.gov.homeoffice.rtemailer
 
 import munit.CatsEffectSuite
-import java.util.Optional
-import uk.gov.homeoffice.mongo.casbah.MongoDBObject
-import uk.gov.homeoffice.mongo.casbah.MongoDBList
-
+import uk.gov.homeoffice.mongo.casbah.{ MongoDBList, MongoDBObject }
 import uk.gov.homeoffice.rtemailer.model._
+
+import java.util.Optional
 
 class UtilSpec extends CatsEffectSuite {
   import Util._
@@ -27,7 +26,7 @@ class UtilSpec extends CatsEffectSuite {
     val testObj = MongoDBObject(
       "string" -> "abc",
       "int" -> 123,
-      "list" -> MongoDBList(List("x", "y", "z") :_*),
+      "list" -> MongoDBList(List("x", "y", "z"): _*),
       "outer" -> MongoDBObject("inner" -> "inside"),
       "dotted.also.works" -> "6",
       "bool" -> true
@@ -43,4 +42,3 @@ class UtilSpec extends CatsEffectSuite {
   }
 
 }
-

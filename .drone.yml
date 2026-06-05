@@ -27,7 +27,7 @@ steps:
       - push
 
 - name: test_and_build
-  pull: Always
+  pull: always
   image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/rtge/scala-sbt:latest
   commands:
   - . /app/entrypoint.sh
@@ -35,7 +35,6 @@ steps:
   - sbt test
   - sbt clean coverageEnabled test coverageReport coverageOff
   #- sbt dependencyCheck
-  - sbt scalastyle || /bin/true
   #- sbt scapegoat || /bin/true
   - sbt clean assembly
   environment:
@@ -70,7 +69,7 @@ steps:
 
 # https://docs.acp.homeoffice.gov.uk/how-to/security/trivy
 - name: vulnerability-scan
-  pull: Always
+  pull: always
   image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/trivy/client:latest
   resources:
     limits:

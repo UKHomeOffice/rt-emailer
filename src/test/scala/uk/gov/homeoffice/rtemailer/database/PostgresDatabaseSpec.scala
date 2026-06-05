@@ -1,16 +1,12 @@
 package uk.gov.homeoffice.rtemailer.database
 
-import munit.CatsEffectSuite
-import uk.gov.homeoffice.domain.core.email.Email
-import uk.gov.homeoffice.rtemailer.model._
-import io.circe._
-import io.circe.syntax._
-import uk.gov.homeoffice.mongo.casbah.MongoDBObject
-import uk.gov.homeoffice.mongo.casbah.MongoDBList
-import com.mongodb.DBObject
-import org.bson.types.ObjectId
 import com.typesafe.config.ConfigFactory
+import io.circe._
+import munit.CatsEffectSuite
+import org.bson.types.ObjectId
 import org.joda.time.DateTime
+import uk.gov.homeoffice.domain.core.email.Email
+import uk.gov.homeoffice.mongo.casbah.{ MongoDBList, MongoDBObject }
 
 class PostgresDatabaseSpec extends CatsEffectSuite {
 
@@ -80,4 +76,3 @@ class PostgresDatabaseSpec extends CatsEffectSuite {
   }
 
 }
-

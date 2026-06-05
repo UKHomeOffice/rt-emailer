@@ -1,16 +1,17 @@
 package uk.gov.homeoffice.rtemailer
 
-import cats.effect.IOApp
 import buildinfo.BuildInfo
-import com.typesafe.config.{Config, ConfigFactory}
+import cats.effect.IOApp
+import com.typesafe.config.{ Config, ConfigFactory }
 import com.typesafe.scalalogging.StrictLogging
-import scala.util.Try
-import scala.io.Source
 import org.joda.time.DateTime
 import org.joda.time.format.DateTimeFormat
-import scala.concurrent.duration._
-import uk.gov.homeoffice.rtemailer.model.{AppStatus, AppContext}
 import uk.gov.homeoffice.rtemailer.database._
+import uk.gov.homeoffice.rtemailer.model.{ AppContext, AppStatus }
+
+import scala.concurrent.duration._
+import scala.io.Source
+import scala.util.Try
 
 object Main extends IOApp.Simple with StrictLogging {
 
@@ -21,7 +22,7 @@ object Main extends IOApp.Simple with StrictLogging {
 
   val isJar = Try(Source.fromFile("src/main/resources/logback.xml")).isFailure
 
-  val config :Config = {
+  val config: Config = {
     val config = ConfigFactory.load()
     logger.info("Configuration Loaded")
     if isJar then {
@@ -44,17 +45,18 @@ object Main extends IOApp.Simple with StrictLogging {
   )
   AppStatus.updateAppStatus(_ => appStatus)
 
-  val emailPollingFrequency :Duration = Duration(config.getString("app.emailPollingFrequency"))
+  val emailPollingFrequency: Duration = Duration(config.getString("app.emailPollingFrequency"))
 
   logger.info(s"rt-emailer application started")
-  logger.info(s"rt-emailer version ${appStatus.version}, started at ${appStatus.appStartTime}. polling frequency: $emailPollingFrequency")
+  logger.info(
+    s"rt-emailer version ${appStatus.version}, started at ${appStatus.appStartTime}. polling frequency: $emailPollingFrequency"
+  )
 
   var appContext = AppContext(
     DateTime.now,
     config,
-    database,
+    database
   )
 
-  var run = RtemailerServer.run(appContext)
+  var run = RtemailerServer.run(using appContext)
 }
-
