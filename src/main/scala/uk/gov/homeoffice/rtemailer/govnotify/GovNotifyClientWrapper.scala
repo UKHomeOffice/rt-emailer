@@ -142,7 +142,7 @@ class GovNotifyClientWrapper(implicit appContext: AppContext) extends StrictLogg
           appContext.updateAppStatus(_.recordGovNotifyError(s"Error calling GovNotify.sendEmail: ${exc.getMessage}"))
           Left(
             GovNotifyError(
-              s"Error calling GovNotify.sendEmail (email reference: $emailReference, recipient: $recipient): ${exc.getMessage}"
+              s"Error calling GovNotify.sendEmail (email reference: $emailReference): ${exc.getMessage}"
             )
           )
         case Right(sendEmailResponse) =>
