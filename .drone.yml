@@ -58,6 +58,7 @@ steps:
   image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/rtge/scala-sbt:latest
   commands:
   - . /app/entrypoint.sh
+  - git config --global --list || true
   - git fetch --tags
   - sbt test
   - sbt clean coverageEnabled test coverageReport coverageOff
@@ -160,6 +161,8 @@ steps:
 
       UPDATED_APP_VERSION=$(cat .app-version)
       echo "UPDATED_APP_VERSION=$${UPDATED_APP_VERSION}"
+
+      git config --global --list || true
 
       git tag -a "v$${UPDATED_APP_VERSION}" -m "Pipeline Build: v$${UPDATED_APP_VERSION}"
       git push origin "v$${UPDATED_APP_VERSION}"
