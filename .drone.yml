@@ -122,20 +122,29 @@ steps:
   depends_on:
     - build_image
 
-- name: push_build_image
-  image: plugins/ecr
-  settings:
-    registry: 340268328991.dkr.ecr.eu-west-2.amazonaws.com
-    repo: rtge/rt-emailer
-    access_key:
-      from_secret: AWS_ACCESS_KEY_ID
-    secret_key:
-      from_secret: AWS_SECRET_ACCESS_KEY
-    tags:
-      - ${DRONE_COMMIT_SHA}
-      - latest
+- name: push-build-image
+  pull: if-not-exists
+  image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/dind
+  commands:
+    # wait for docker service to be up before running docker tag and push
+    - n=0; while [ "$n" -lt 60 ] && [ ! docker stats --no-stream ]; do n=$(( n + 1 )); sleep 1; done
+    - GENERATED_APP_VERSION=$(cat .app-version)
+
+    # push the image from build_image up to ECR
+    - docker tag rt-emailer:$${GENERATED_APP_VERSION} $${REGISTRY}/$${NAME}:$${GENERATED_APP_VERSION}
+    - docker tag rt-emailer:$${DRONE_COMMIT_SHA} $${REGISTRY}/$${NAME}:$${DRONE_COMMIT_SHA}
+    - docker tag rt-emailer:$${DRONE_COMMIT_SHA} $${REGISTRY}/$${NAME}:latest
+
+    - docker push $${REGISTRY}/$${NAME}:$${GENERATED_APP_VERSION}
+    - docker push $${REGISTRY}/$${NAME}:$${DRONE_COMMIT_SHA}
+    - docker push $${REGISTRY}/$${NAME}:latest
   environment:
     AWS_REGION: eu-west-2
+    NAME: rtge/rt-emailer
+    REGISTRY: 340268328991.dkr.ecr.eu-west-2.amazonaws.com
+  volumes:
+    - name: dockerclientconfig
+      path: /root/.docker
   when:
     event:
       - push
