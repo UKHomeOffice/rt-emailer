@@ -151,6 +151,27 @@ steps:
   depends_on:
     - build_image
 
+- name: create-build-tag
+  pull: if-not-exists
+  image: node:20
+  commands:
+    - |
+      set -eu
+
+      UPDATED_APP_VERSION=$(cat .app-version)
+      echo "UPDATED_APP_VERSION=$${UPDATED_APP_VERSION}"
+
+      git tag -a "v$${UPDATED_APP_VERSION}" -m "Pipeline Build: v$${UPDATED_APP_VERSION}"
+      git push origin "v$${UPDATED_APP_VERSION}"
+  depends_on:
+    - push-build-image
+  when:
+    # branch:
+    #   - master
+    event:
+      - push
+
+
 services:
 - name: docker
   image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/dind
