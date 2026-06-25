@@ -6,7 +6,38 @@ platform:
   os: linux
   arch: amd64
 
+trigger:
+  event:
+    - push
+
 steps:
+
+- name: set-automated-build-version
+  pull: if-not-exists
+  image: node:20
+  commands:
+    - |
+      set -eu
+
+      APP_VERSION=$(node -e "
+        const version = require('./app/package.json').version;
+        if (!version || !String(version).trim()) {
+          console.error('app/package.json version is empty');
+          process.exit(1);
+        }
+        process.stdout.write(String(version).trim());
+      ")
+
+      BUILD_NUMBER="$${DRONE_BUILD_NUMBER}"
+      APP_BASE_VERSION=$(echo "$${APP_VERSION}" | cut -d. -f1,2,3)
+      GENERATED_APP_VERSION="$${APP_BASE_VERSION}-build.$${BUILD_NUMBER}"
+
+      printf '%s\n' "$${GENERATED_APP_VERSION}" > .app-version
+
+      echo "Original base app version from app/package.json: $${APP_VERSION}"
+      echo "Build number from Drone: $${BUILD_NUMBER}"
+      echo "New app version based on build: $${GENERATED_APP_VERSION}"
+
 - name: ecr-login
   pull: if-not-exists
   image: quay.io/ukhomeofficedigital/dind-awscli:19.03.12-dind-1.18.55
