@@ -83,12 +83,20 @@ steps:
   environment:
     AWS_REGION: eu-west-2
   commands:
-    - docker build -t 340268328991.dkr.ecr.eu-west-2.amazonaws.com/rtge/rt-emailer:$${DRONE_COMMIT_SHA} .
+    - |
+      set -eu
+
+      GENERATED_APP_VERSION=$(cat .app-version)
+      
+    - docker build -t rt-emailer:$${GENERATED_APP_VERSION} .
+    - docker tag rt-emailer:$${GENERATED_APP_VERSION} rt-emailer:$${DRONE_COMMIT_SHA}
+    - docker tag rt-emailer:$${GENERATED_APP_VERSION} rt-emailer:latest
   volumes:
     - name: dockerclientconfig
       path: /root/.docker
   depends_on:
     - test_and_build
+    - ecr-login
   when:
     event:
       - push
@@ -104,7 +112,7 @@ steps:
       memory: 1024Mi
   environment:
     FAIL_ON_DETECTION: false
-    IMAGE_NAME: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/rtge/rt-emailer:${DRONE_COMMIT_SHA}
+    IMAGE_NAME: rt-emailer:${DRONE_COMMIT_SHA}
     SEVERITY: MEDIUM,HIGH,CRITICAL
   when:
     branch:
