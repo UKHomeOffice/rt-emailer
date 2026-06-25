@@ -11,32 +11,28 @@ trigger:
     - push
 
 steps:
-
 - name: set-automated-build-version
   pull: if-not-exists
-  image: node:20
+  image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/rtge/scala-sbt:latest
   commands:
-    - |
-      set -eu
+  - |
+    set -eu
 
-      APP_VERSION=$(node -e "
-        const version = require('./app/package.json').version;
-        if (!version || !String(version).trim()) {
-          console.error('app/package.json version is empty');
-          process.exit(1);
-        }
-        process.stdout.write(String(version).trim());
-      ")
+    APP_VERSION=$(grep -E '^version\s*:=' build.sbt | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
+    if [ -z "$APP_VERSION" ]; then
+      echo "Unable to determine application version from build.sbt"
+      exit 1
+    fi
 
-      BUILD_NUMBER="$${DRONE_BUILD_NUMBER}"
-      APP_BASE_VERSION=$(echo "$${APP_VERSION}" | cut -d. -f1,2,3)
-      GENERATED_APP_VERSION="$${APP_BASE_VERSION}-build.$${BUILD_NUMBER}"
+    BUILD_NUMBER="$${DRONE_BUILD_NUMBER}"
+    APP_BASE_VERSION=$(echo "$${APP_VERSION}" | cut -d. -f1,2,3)
+    GENERATED_APP_VERSION="$${APP_BASE_VERSION}-build.$${BUILD_NUMBER}"
 
-      printf '%s\n' "$${GENERATED_APP_VERSION}" > .app-version
+    printf '%s\n' "$${GENERATED_APP_VERSION}" > .app-version
 
-      echo "Original base app version from app/package.json: $${APP_VERSION}"
-      echo "Build number from Drone: $${BUILD_NUMBER}"
-      echo "New app version based on build: $${GENERATED_APP_VERSION}"
+    echo "Base app version from build.sbt: $${APP_VERSION}"
+    echo "Build number from Drone: $${BUILD_NUMBER}"
+    echo "Generated app version: $${GENERATED_APP_VERSION}"
 
 - name: ecr-login
   pull: if-not-exists
