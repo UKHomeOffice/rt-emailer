@@ -187,3 +187,33 @@ volumes:
   - name: dockerclientconfig
     temp: {}
 
+---
+kind: pipeline
+type: kubernetes
+name: rt-emailer-deploy
+
+platform:
+  os: linux
+  arch: amd64
+
+trigger:
+  event:
+    - promote
+
+steps:
+- name: deploy
+  pull: if-not-exists
+  image: quay.io/ukhomeofficedigital/kd:v1.14.0
+  commands:
+    - test -n "$${DRONE_COMMIT_SHA}"
+    - cd kube
+    - ./bin/deploy.sh "$${DRONE_COMMIT_SHA}"
+  environment:
+    KUBE_TOKEN_ACP_NOTPROD:
+      from_secret: KUBE_TOKEN_ACP_NOTPROD
+    KUBE_TOKEN_ACP_PROD:
+      from_secret: KUBE_TOKEN_ACP_PROD
+  when:
+    event:
+      - promote
+
