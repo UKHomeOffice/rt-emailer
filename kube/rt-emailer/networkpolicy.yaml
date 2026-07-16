@@ -1,0 +1,18 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: rt-emailer
+spec:
+  podSelector:
+    matchLabels:
+      name: rt-emailer
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          name: {{.KUBE_NAMESPACE}}
+    ports:
+    - protocol: TCP
+      port: 8085

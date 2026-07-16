@@ -6,7 +6,34 @@ platform:
   os: linux
   arch: amd64
 
+trigger:
+  event:
+    - push
+
 steps:
+- name: set-automated-build-version
+  pull: if-not-exists
+  image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/rtge/scala-sbt:latest
+  commands:
+  - |
+    set -eu
+
+    APP_VERSION=$(grep -E '^version\s*:=' build.sbt | head -1 | sed -E 's/.*"([^"]+)".*/\1/')
+    if [ -z "$APP_VERSION" ]; then
+      echo "Unable to determine application version from build.sbt"
+      exit 1
+    fi
+
+    BUILD_NUMBER="$${DRONE_BUILD_NUMBER}"
+    APP_BASE_VERSION=$(echo "$${APP_VERSION}" | cut -d. -f1,2,3)
+    GENERATED_APP_VERSION="$${APP_BASE_VERSION}-build.$${BUILD_NUMBER}"
+
+    printf '%s\n' "$${GENERATED_APP_VERSION}" > .app-version
+
+    echo "Base app version from build.sbt: $${APP_VERSION}"
+    echo "Build number from Drone: $${BUILD_NUMBER}"
+    echo "Generated app version: $${GENERATED_APP_VERSION}"
+
 - name: ecr-login
   pull: if-not-exists
   image: quay.io/ukhomeofficedigital/dind-awscli:19.03.12-dind-1.18.55
@@ -31,6 +58,7 @@ steps:
   image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/rtge/scala-sbt:latest
   commands:
   - . /app/entrypoint.sh
+  - git config --global --list || true
   - git fetch --tags
   - sbt test
   - sbt clean coverageEnabled test coverageReport coverageOff
@@ -56,12 +84,20 @@ steps:
   environment:
     AWS_REGION: eu-west-2
   commands:
-    - docker build -t 340268328991.dkr.ecr.eu-west-2.amazonaws.com/rtge/rt-emailer:$${DRONE_COMMIT_SHA} .
+    - |
+      set -eu
+
+      GENERATED_APP_VERSION=$(cat .app-version)
+      
+    - docker build -t rt-emailer:$${GENERATED_APP_VERSION} .
+    - docker tag rt-emailer:$${GENERATED_APP_VERSION} rt-emailer:$${DRONE_COMMIT_SHA}
+    - docker tag rt-emailer:$${GENERATED_APP_VERSION} rt-emailer:latest
   volumes:
     - name: dockerclientconfig
       path: /root/.docker
   depends_on:
     - test_and_build
+    - ecr-login
   when:
     event:
       - push
@@ -77,7 +113,7 @@ steps:
       memory: 1024Mi
   environment:
     FAIL_ON_DETECTION: false
-    IMAGE_NAME: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/rtge/rt-emailer:${DRONE_COMMIT_SHA}
+    IMAGE_NAME: rt-emailer:${DRONE_COMMIT_SHA}
     SEVERITY: MEDIUM,HIGH,CRITICAL
   when:
     branch:
@@ -87,25 +123,57 @@ steps:
   depends_on:
     - build_image
 
-- name: push_build_image
-  image: plugins/ecr
-  settings:
-    registry: 340268328991.dkr.ecr.eu-west-2.amazonaws.com
-    repo: rtge/rt-emailer
-    access_key:
-      from_secret: AWS_ACCESS_KEY_ID
-    secret_key:
-      from_secret: AWS_SECRET_ACCESS_KEY
-    tags:
-      - ${DRONE_COMMIT_SHA}
-      - latest
+- name: push-build-image
+  pull: if-not-exists
+  image: 340268328991.dkr.ecr.eu-west-2.amazonaws.com/acp/dind
+  commands:
+    # wait for docker service to be up before running docker tag and push
+    - n=0; while [ "$n" -lt 60 ] && [ ! docker stats --no-stream ]; do n=$(( n + 1 )); sleep 1; done
+    - GENERATED_APP_VERSION=$(cat .app-version)
+
+    # push the image from build_image up to ECR
+    - docker tag rt-emailer:$${GENERATED_APP_VERSION} $${REGISTRY}/$${NAME}:$${GENERATED_APP_VERSION}
+    - docker tag rt-emailer:$${DRONE_COMMIT_SHA} $${REGISTRY}/$${NAME}:$${DRONE_COMMIT_SHA}
+    - docker tag rt-emailer:$${DRONE_COMMIT_SHA} $${REGISTRY}/$${NAME}:latest
+
+    - docker push $${REGISTRY}/$${NAME}:$${GENERATED_APP_VERSION}
+    - docker push $${REGISTRY}/$${NAME}:$${DRONE_COMMIT_SHA}
+    - docker push $${REGISTRY}/$${NAME}:latest
   environment:
     AWS_REGION: eu-west-2
+    NAME: rtge/rt-emailer
+    REGISTRY: 340268328991.dkr.ecr.eu-west-2.amazonaws.com
+  volumes:
+    - name: dockerclientconfig
+      path: /root/.docker
   when:
     event:
       - push
   depends_on:
     - build_image
+
+# Have had to disable the below to an auth issue with the git tag command in the drone pipeline. The git tag command is failing with a cannot read username error which i believe is an authentication/ tokenisation issue between drone and github.
+
+# - name: create-build-tag
+#   pull: if-not-exists
+#   image: node:20
+#   commands:
+#     - |
+#       set -eu
+
+#       UPDATED_APP_VERSION=$(cat .app-version)
+#       echo "UPDATED_APP_VERSION=$${UPDATED_APP_VERSION}"
+
+#       git tag -a "v$${UPDATED_APP_VERSION}" -m "Pipeline Build: v$${UPDATED_APP_VERSION}"
+#       git push origin "v$${UPDATED_APP_VERSION}"
+#   depends_on:
+#     - push-build-image
+#   when:
+#     # branch:
+#     #   - master
+#     event:
+#       - push
+
 
 services:
 - name: docker
@@ -118,4 +186,34 @@ services:
 volumes:
   - name: dockerclientconfig
     temp: {}
+
+---
+kind: pipeline
+type: kubernetes
+name: rt-emailer-deploy
+
+platform:
+  os: linux
+  arch: amd64
+
+trigger:
+  event:
+    - promote
+
+steps:
+- name: deploy
+  pull: if-not-exists
+  image: quay.io/ukhomeofficedigital/kd:v1.14.0
+  commands:
+    - test -n "$${DRONE_COMMIT_SHA}"
+    - cd kube
+    - ./bin/deploy.sh "$${DRONE_COMMIT_SHA}"
+  environment:
+    KUBE_TOKEN_ACP_NOTPROD:
+      from_secret: KUBE_TOKEN_ACP_NOTPROD
+    KUBE_TOKEN_ACP_PROD:
+      from_secret: KUBE_TOKEN_ACP_PROD
+  when:
+    event:
+      - promote
 

@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rt-emailer
+data:
+  mongo_host: "mongo-ssl-0.mongo-ssl.{{.KUBE_NAMESPACE}}.svc.cluster.local:27017,mongo-ssl-1.mongo-ssl.{{.KUBE_NAMESPACE}}.svc.cluster.local:27017,mongo-ssl-2.mongo-ssl.{{.KUBE_NAMESPACE}}.svc.cluster.local:27017"
+  mongo_dbname: caseworker
+  mongo_username: caseworker
+  sender: {{.EMAIL_SENDER}}
+  senderName: "Border Force"
+  replyTo: RTInbox@homeoffice.gov.uk
+  replyToName: "Border Force"
+  smtpport: "587"

@@ -1,6 +1,8 @@
 credentials += Credentials(Path.userHome / ".ivy2" / ".credentials")
 resolvers ++= AppResolvers.all
 
+version := "0.0.1"
+
 lazy val root = (project in file("."))
   .enablePlugins(GitVersioning, BuildInfoPlugin)
   .settings(
