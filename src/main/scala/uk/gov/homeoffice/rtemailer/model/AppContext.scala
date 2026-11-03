@@ -8,12 +8,6 @@ case class AppContext(
     nowF: () => DateTime,
     config: Config,
     database: Database
-) {
+):
   def updateAppStatus(updateFunction: AppStatus => AppStatus): Unit =
     AppStatus.updateAppStatus(updateFunction)
-
-  def recordMetric(name: String, value: Int): Unit = {
-    // StatsD removed in Scala 3 port.
-    // Our alerting system tracks app health via the email table
-  }
-}

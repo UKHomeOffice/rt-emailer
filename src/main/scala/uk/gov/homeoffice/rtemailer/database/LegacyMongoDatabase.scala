@@ -16,26 +16,25 @@ import uk.gov.homeoffice.rtemailer.model._
 import java.net.InetAddress
 import scala.util.Try
 
-class LegacyMongoDatabase(config: Config) extends Database with StrictLogging {
+class LegacyMongoDatabase(config: Config) extends Database with StrictLogging:
 
-  val dbHost = config.getString("db.mongo.host")
-  val dbName = config.getString("db.mongo.name")
-  val dbUser = config.getString("db.mongo.user")
-  val dbPassword = config.getString("db.mongo.password")
-  val dbParams = config.getString("db.mongo.params")
-  val dbSSL = config.getBoolean("db.mongo.ssl")
+  private val dbHost = config.getString("db.mongo.host")
+  private val dbName = config.getString("db.mongo.name")
+  private val dbUser = config.getString("db.mongo.user")
+  private val dbPassword = config.getString("db.mongo.password")
+  private val dbParams = config.getString("db.mongo.params")
+  private val dbSSL = config.getBoolean("db.mongo.ssl")
 
-  val mongoConnectionString = dbUser.isEmpty match {
-    case false =>
-      logger.info(s"mongo connection string: mongodb://$dbUser:*******@$dbHost/$dbName?$dbParams")
-      s"mongodb://$dbUser:$dbPassword@$dbHost/$dbName?$dbParams"
-    case true =>
+  private val mongoConnectionString =
+    if dbUser.isEmpty then
       val cs = s"mongodb://$dbHost/$dbName"
       logger.info(s"mongo connection string: $cs")
       cs
-  }
+    else
+      logger.info(s"mongo connection string: mongodb://$dbUser:*******@$dbHost/$dbName?$dbParams")
+      s"mongodb://$dbUser:$dbPassword@$dbHost/$dbName?$dbParams"
 
-  val mongoConnection = MongoConnector.connect(
+  private val mongoConnection = MongoConnector.connect(
     mongoConnectionString,
     "rt-emailer",
     dbSSL,
@@ -61,19 +60,19 @@ class LegacyMongoDatabase(config: Config) extends Database with StrictLogging {
 
   lazy val emailRepository = EmailRepository(mongoConnection)
 
-  def obtainLock(): IO[Lock] =
+  // TODO: this should not be throwing an exception.
+  def obtainLock: IO[Lock] =
     IO.delay(processLockRepository.obtainLock(lockName, host).getOrElse(throw new Exception(s"Unable to aquire lock")))
+
   def releaseLock(lock: Lock): IO[Unit] = IO.delay(processLockRepository.releaseLock(lock))
 
-  def getWaitingEmails(): fs2.Stream[IO, Email] = {
+  def getWaitingEmails: fs2.Stream[IO, Email] =
     val emailList: List[Email] = emailRepository.findByStatus(STATUS_WAITING)
     fs2.Stream.fromIterator[IO](emailList.iterator, 512)
-  }
 
   def updateStatus(email: Email, emailSentResult: EmailSentResult): IO[EmailSentResult] =
     IO.delay {
-
-      emailSentResult match {
+      emailSentResult match
         case Sent(newText, newHtml) =>
           logger.info("Marking email as sent")
           emailRepository.updateStatus(email.emailId, STATUS_SENT, newText, newHtml)
@@ -103,50 +102,42 @@ class LegacyMongoDatabase(config: Config) extends Database with StrictLogging {
           logger.error(s"Error with email address: $err")
           emailRepository.updateStatus(email.emailId, STATUS_EMAIL_ADDRESS_ERROR)
           EmailAddressError(err)
-
-        case unknown =>
-          logger.error(s"Unexpected Error class reported: $unknown. Passing through as EmailAddressError")
-          emailRepository.updateStatus(email.emailId, unknown.toString)
-          EmailAddressError(unknown.toString)
-      }
     }
 
   def caseObjectFromEmail(
       email: Email
-  )(implicit appContext: AppContext): IO[Either[GovNotifyError, Option[MongoDBObject]]] = {
+  )(using appContext: AppContext): IO[Either[GovNotifyError, Option[MongoDBObject]]] =
     lazy val caseTable: String = config.getString("govNotify.caseTable")
 
-    email.caseId match {
+    email.caseId match
       case Some(caseId) =>
         IO.blocking(Try(getCollection(caseTable).findOne(MongoDBObject("_id" -> new ObjectId(caseId)))).toEither match {
           case Left(exc) =>
             appContext.updateAppStatus(_.recordDatabaseError(exc.getMessage))
-            Left(GovNotifyError(s"Database error looking up case from email: ${exc.getMessage()}"))
+            Left(GovNotifyError(s"Database error looking up case from email: ${exc.getMessage}"))
           case Right(maybeObj) =>
-            appContext.updateAppStatus(_.markDatabaseOk())
+            appContext.updateAppStatus(_.markDatabaseOk)
             Right(maybeObj)
         })
       case None => IO.delay(Right(None))
-    }
-  }
 
   def parentObjectFromCaseObject(
       caseObj: MongoDBObject
-  )(implicit appContext: AppContext): IO[Either[GovNotifyError, Option[MongoDBObject]]] = {
+  )(using appContext: AppContext): IO[Either[GovNotifyError, Option[MongoDBObject]]] =
     lazy val caseTable: String = config.getString("govNotify.caseTable")
 
-    extractDBField(caseObj, "parentRegisteredTravellerNumber") match {
+    extractDBField(caseObj, "parentRegisteredTravellerNumber") match
       case Some(parentRT) =>
         IO.blocking {
-          parentRT.stringValue() match {
+          parentRT.stringValue match {
             case Right(parentRTString) =>
               Try(
                 getCollection(caseTable).findOne(MongoDBObject("registeredTravellerNumber" -> parentRTString))
               ).toEither.left.map { exc =>
                 logger.info(
-                  s"Database error looking up parent case (caseId: ${caseObj.get("_id").toString}): ${exc.getMessage()}"
+                  s"Database error looking up parent case (caseId: ${caseObj.get("_id").toString}): ${exc.getMessage}"
                 )
-                GovNotifyError(s"Database error looking up parent case from case: ${exc.getMessage()}")
+                GovNotifyError(s"Database error looking up parent case from case: ${exc.getMessage}")
               }
             case Left(_) =>
               logger.info(s"parentRegisteredTravellerNumber was not a string (${caseObj.get("_id")})")
@@ -154,8 +145,5 @@ class LegacyMongoDatabase(config: Config) extends Database with StrictLogging {
           }
         }
       case None =>
-        logger.info(s"No parentRegisteredTravellerNumber in caseObj (${caseObj.get("_id")})")
-        IO.delay(Right(None))
-    }
-  }
-}
+        IO.delay(logger.info(s"No parentRegisteredTravellerNumber in caseObj (${caseObj.get("_id")})")) *>
+          IO.delay(Right(None))

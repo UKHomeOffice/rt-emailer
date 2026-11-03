@@ -5,10 +5,10 @@ import munit.CatsEffectSuite
 import org.joda.time._
 import org.joda.time.format.DateTimeFormat
 
-class TemplateFunctionsSpec extends CatsEffectSuite {
+class TemplateFunctionsSpec extends CatsEffectSuite:
 
-  val templateFunctions = new TemplateFunctions()(
-    new AppContext(
+  val templateFunctions = new TemplateFunctions(using
+    AppContext(
       nowF = () => DateTime.parse("2024-01-01T01:02:03"),
       ConfigFactory.parseString("""
       app {
@@ -225,4 +225,3 @@ class TemplateFunctionsSpec extends CatsEffectSuite {
       Left(GovNotifyError("can't call parseDate on broken. Bad date format"))
     )
   }
-}

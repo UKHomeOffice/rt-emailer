@@ -10,9 +10,9 @@ import uk.gov.homeoffice.mongo.casbah.MongoDBObject
 import uk.gov.homeoffice.rtemailer.model.{ AppContext, _ }
 import uk.gov.service.notify.{ NotificationClient, SendEmailResponse, Template, TemplateList }
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 
-class GovNotifyClientWrapperSpec extends CatsEffectSuite {
+class GovNotifyClientWrapperSpec extends CatsEffectSuite:
 
   val testTemplate1 = new Template(s"""{
     "id":"${java.util.UUID.randomUUID()}",
@@ -72,12 +72,12 @@ class GovNotifyClientWrapperSpec extends CatsEffectSuite {
       }
     }
 
-    val govNotifyClient = new GovNotifyClientWrapper()(testAppContext) {
+    val govNotifyClient = new GovNotifyClientWrapper(using testAppContext) {
       override val notifyClient1 = fakeNotifyClient1
       override val notifyClient2 = Some(fakeNotifyClient2)
     }
 
-    val allTemplates = govNotifyClient.getAllTemplates().unsafeRunSync()
+    val allTemplates = govNotifyClient.getAllTemplates.unsafeRunSync()
     allTemplates match {
       case Left(gnErr) => fail(s"Fetching templates failed with $gnErr")
       case Right(list) =>
@@ -107,7 +107,7 @@ class GovNotifyClientWrapperSpec extends CatsEffectSuite {
       null
     )
 
-    val govNotifyClient = new GovNotifyClientWrapper()(testAppContext) {
+    val govNotifyClient = new GovNotifyClientWrapper(using testAppContext) {
       override def sendOneEmail(
           recipient: String,
           emailReference: String,
@@ -183,4 +183,3 @@ class GovNotifyClientWrapperSpec extends CatsEffectSuite {
       )
     )
   }
-}

@@ -7,9 +7,9 @@ import org.http4s.circe._
 import org.http4s.dsl.Http4sDsl
 import uk.gov.homeoffice.rtemailer.model.AppStatus
 
-object RtemailerRoutes {
+object RtemailerRoutes:
 
-  def allRoutes[F[_]: Sync](): HttpRoutes[F] = {
+  def allRoutes[F[_]: Sync](): HttpRoutes[F] =
     val dsl = new Http4sDsl[F] {}
     import dsl._
 
@@ -20,8 +20,5 @@ object RtemailerRoutes {
       // to Mongo, GovNotify and Amazon SES after failures, I'd rather sit idle
       // when errors occur than force a reboot until I have more experience of how the application
       // behaves in production.
-      case GET -> Root / "status" => Ok(AppStatus.getAppStatus().flatten().asJson)
+      case GET -> Root / "status" => Ok(AppStatus.getAppStatus.flatten().asJson)
     }
-  }
-
-}
