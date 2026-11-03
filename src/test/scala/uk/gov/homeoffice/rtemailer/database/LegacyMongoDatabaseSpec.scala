@@ -8,7 +8,7 @@ import uk.gov.homeoffice.mongo.casbah._
 import uk.gov.homeoffice.rtemailer.emailsender._
 import uk.gov.homeoffice.rtemailer.model.AppContext
 
-class LegacyMongoDatabaseSpec extends CatsEffectSuite {
+class LegacyMongoDatabaseSpec extends CatsEffectSuite:
 
   test("parent lookup inc. database calls works") {
 
@@ -69,7 +69,7 @@ class LegacyMongoDatabaseSpec extends CatsEffectSuite {
 
     val legacyMongoDatabase = new LegacyMongoDatabase(config)
 
-    val appContext = AppContext(
+    given appContext: AppContext = AppContext(
       nowF = { () => now },
       config = config,
       database = legacyMongoDatabase
@@ -80,10 +80,9 @@ class LegacyMongoDatabaseSpec extends CatsEffectSuite {
     legacyMongoDatabase.getCollection("email").insertOne(emailObject)
 
     // Test begins here.
-    val govNotifyEmailSender = new GovNotifyEmailSender()(appContext)
+    val govNotifyEmailSender = new GovNotifyEmailSender
     val result = govNotifyEmailSender
       .buildParentPersonalisations(List("parent:name"), Some(childCaseObject), "my template")
       .unsafeRunSync()
     assertEquals(result.right.get, Map("parent:name" -> "Jullian"))
   }
-}

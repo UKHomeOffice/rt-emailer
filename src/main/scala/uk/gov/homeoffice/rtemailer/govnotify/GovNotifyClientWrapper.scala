@@ -8,16 +8,15 @@ import uk.gov.homeoffice.domain.core.email.Email
 import uk.gov.homeoffice.rtemailer.model._
 import uk.gov.service.notify.{ NotificationClient, SendEmailResponse, Template, TemplatePreview }
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.util.Try
 
-case class TemplateWC(template: Template, client: NotificationClient) {
-  def getPersonalisation(): java.util.Optional[java.util.Map[String, Object]] = template.getPersonalisation()
-  def getName(): String = template.getName()
-  def getId(): java.util.UUID = template.getId()
-}
+case class TemplateWC(template: Template, client: NotificationClient):
+  def getPersonalisation: java.util.Optional[java.util.Map[String, Object]] = template.getPersonalisation
+  def getName: String = template.getName
+  def getId: java.util.UUID = template.getId
 
-class GovNotifyClientWrapper(implicit appContext: AppContext) extends StrictLogging {
+class GovNotifyClientWrapper(using appContext: AppContext) extends StrictLogging:
   import uk.gov.homeoffice.rtemailer.Util._
 
   val notifyClient1 = new NotificationClient(appContext.config.getString("govNotify.apiKey"))
@@ -27,7 +26,7 @@ class GovNotifyClientWrapper(implicit appContext: AppContext) extends StrictLogg
     case key2 => Some(new NotificationClient(key2))
   }
 
-  def getAllTemplates(): IO[Either[GovNotifyError, List[TemplateWC]]] = {
+  def getAllTemplates: IO[Either[GovNotifyError, List[TemplateWC]]] = {
     val client1Templates = getAllClientTemplates(notifyClient1)
 
     val client2Templates = notifyClient2 match {
@@ -43,9 +42,9 @@ class GovNotifyClientWrapper(implicit appContext: AppContext) extends StrictLogg
 
   private def getAllClientTemplates(client: NotificationClient): IO[Either[GovNotifyError, List[TemplateWC]]] =
     IO.blocking(
-      Try(client.getAllTemplates("email").getTemplates().asScala.toList).toEither
+      Try(client.getAllTemplates("email").getTemplates.asScala.toList).toEither
         .map { templates =>
-          val templateNames = templates.map(_.getName()).mkString(",")
+          val templateNames = templates.map(_.getName).mkString(",")
           logger.info(s"Templates returned from gov notify: $templateNames")
           // We attach the client to the template to support working with
           // templates with multiple clients, as is the scenario with RT/GE.
@@ -62,8 +61,8 @@ class GovNotifyClientWrapper(implicit appContext: AppContext) extends StrictLogg
     IO.blocking(
       Try(
         twc.client.generateTemplatePreview(
-          twc.template.getId().toString(),
-          personalisations.asJavaMap()
+          twc.template.getId.toString,
+          personalisations.asJava
         )
       ).toEither match {
         case Left(exc) =>
@@ -72,7 +71,7 @@ class GovNotifyClientWrapper(implicit appContext: AppContext) extends StrictLogg
           )
           Left(GovNotifyError(s"Error calling GovNotify.generateTemplatePreview: ${exc.getMessage}"))
         case Right(templatePreview) =>
-          appContext.updateAppStatus(_.markGovNotifyOk())
+          appContext.updateAppStatus(_.markGovNotifyOk)
           Right(templatePreview)
       }
     )
@@ -81,7 +80,7 @@ class GovNotifyClientWrapper(implicit appContext: AppContext) extends StrictLogg
       email: Email,
       twc: TemplateWC,
       allPersonalisations: Map[String, String]
-  ): IO[Either[GovNotifyError, SendEmailResponse]] = {
+  ): IO[Either[GovNotifyError, SendEmailResponse]] =
     val allCopies = List(email.recipient) ++ email.cc
     val emailsSent: IO[List[Either[GovNotifyError, SendEmailResponse]]] = allCopies.zipWithIndex.map {
       case (recipient, 0) => sendOneEmail(recipient, email.emailId, twc, allPersonalisations)
@@ -91,7 +90,7 @@ class GovNotifyClientWrapper(implicit appContext: AppContext) extends StrictLogg
     emailsSent.map { list =>
       val errorList = list.collect { case Left(govNotifyError) => govNotifyError }
       val goodResponseList = list.collect { case Right(sendEmailResponse) => sendEmailResponse }
-      (errorList, goodResponseList) match {
+      (errorList, goodResponseList) match
         case (Nil, firstGoodResponse :: _) => Right(firstGoodResponse)
         case (oneError :: Nil, Nil)        => Left(oneError)
         case (errorList, Nil)              =>
@@ -119,9 +118,7 @@ class GovNotifyClientWrapper(implicit appContext: AppContext) extends StrictLogg
               transient = false
             )
           ) // transient flag critical importance to stop spamming emails to people!
-      }
     }
-  }
 
   def sendOneEmail(
       recipient: String,
@@ -146,8 +143,7 @@ class GovNotifyClientWrapper(implicit appContext: AppContext) extends StrictLogg
             )
           )
         case Right(sendEmailResponse) =>
-          appContext.updateAppStatus(_.markGovNotifyOk())
+          appContext.updateAppStatus(_.markGovNotifyOk)
           Right(sendEmailResponse)
       }
     )
-}

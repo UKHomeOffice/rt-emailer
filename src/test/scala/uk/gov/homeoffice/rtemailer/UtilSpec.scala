@@ -6,8 +6,8 @@ import uk.gov.homeoffice.rtemailer.model._
 
 import java.util.Optional
 
-class UtilSpec extends CatsEffectSuite {
-  import Util._
+class UtilSpec extends CatsEffectSuite:
+  import Util.*
 
   test("java option to scala option works") {
     assertEquals(Optional.of[String]("hello").asScalaOption(), Some("hello"))
@@ -40,5 +40,3 @@ class UtilSpec extends CatsEffectSuite {
     assertEquals(extractDBField(testObj, "bool"), Some(TString("yes")))
     assertEquals(extractDBField(testObj, "missing"), None)
   }
-
-}
