@@ -7,17 +7,15 @@ import uk.gov.homeoffice.rtemailer.model._
 
 object Util {
 
-  implicit class JavaOptionalOps[A](val underlying: java.util.Optional[A]) extends AnyVal {
+  extension [A](underlying: java.util.Optional[A])
     def asScalaOption(): Option[A] = if underlying.isEmpty then None else Some(underlying.get())
-  }
 
-  implicit class ScalaMapOps(val underlying: Map[String, String]) extends AnyVal {
+  extension (underlying: Map[String, String])
     def asJavaMap(): java.util.HashMap[String, Object] = {
       val javaMap = new java.util.HashMap[String, Object]()
       underlying.foreach { case (k, v) => javaMap.put(k, v) }
       javaMap
     }
-  }
 
   def extractDBField(dbObj: MongoDBObject, fieldName: String): Option[TemplateLookup] =
 
