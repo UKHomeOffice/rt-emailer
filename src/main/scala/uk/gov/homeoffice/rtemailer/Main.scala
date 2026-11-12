@@ -1,7 +1,7 @@
 package uk.gov.homeoffice.rtemailer
 
 import buildinfo.BuildInfo
-import cats.effect.IOApp
+import cats.effect.{ IO, IOApp }
 import com.typesafe.config.{ Config, ConfigFactory }
 import com.typesafe.scalalogging.StrictLogging
 import org.joda.time.DateTime
@@ -10,35 +10,26 @@ import uk.gov.homeoffice.rtemailer.database._
 import uk.gov.homeoffice.rtemailer.model.{ AppContext, AppStatus }
 
 import scala.concurrent.duration._
-import scala.io.Source
-import scala.util.Try
 
-object Main extends IOApp.Simple with StrictLogging {
+object Main extends IOApp.Simple with StrictLogging:
 
   // 1. load config
   // 2. connect to database
   // 3. set up a mechanism to track app status
   // 4. call http4s run
 
-  val isJar = Try(Source.fromFile("src/main/resources/logback.xml")).isFailure
-
-  val config: Config = {
+  private val config: Config = {
     val config = ConfigFactory.load()
-    logger.info("Configuration Loaded")
-    if isJar then {
-      logger.info("isJar: true. resource files streamed from jar")
-    } else {
-      logger.info("isJar: false. resource files reloaded from disk on each call")
-    }
+    logger.info("Configuration loaded from classpath/application overrides")
     config
   }
 
-  val database = Database.make(config)
+  private val database = Database.make(config)
   logger.info(s"Database: ${database.name}")
 
   // set up a global variable called appStatus that can be manipulated
   // to show stats on the /status endpoint.
-  val appStatus = AppStatus(
+  private val appStatus = AppStatus(
     appName = "rt-emailer",
     version = BuildInfo.version,
     appStartTime = DateTimeFormat.forPattern("yyyy-MM-dd'T'HH:mm:ssZ").print(DateTime.now)
@@ -52,11 +43,10 @@ object Main extends IOApp.Simple with StrictLogging {
     s"rt-emailer version ${appStatus.version}, started at ${appStatus.appStartTime}. polling frequency: $emailPollingFrequency"
   )
 
-  var appContext = AppContext(
+  given appContext: AppContext = AppContext(
     DateTime.now,
     config,
     database
   )
 
-  var run = RtemailerServer.run(using appContext)
-}
+  val run: IO[Unit] = RtemailerServer.run

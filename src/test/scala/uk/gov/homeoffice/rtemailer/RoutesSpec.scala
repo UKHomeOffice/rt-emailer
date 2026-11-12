@@ -7,7 +7,7 @@ import org.http4s._
 import org.http4s.implicits._
 import uk.gov.homeoffice.rtemailer.model.AppStatus
 
-class RoutesSpec extends CatsEffectSuite {
+class RoutesSpec extends CatsEffectSuite:
 
   val routes = RtemailerRoutes.allRoutes[IO]()
   val req = Request[IO](Method.GET, uri"/status")
@@ -33,5 +33,3 @@ class RoutesSpec extends CatsEffectSuite {
       case None => fail(s"Got 404 in test: ${req}")
     }
   }
-
-}
