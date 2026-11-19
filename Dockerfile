@@ -1,5 +1,7 @@
 FROM eclipse-temurin:24-jre
 
+ENV JAVA_TOOL_OPTIONS="-XX:-UseBASE64Intrinsics"
+
 RUN groupadd -r app -g 1000 || true
 RUN useradd -r -g 1000 -u 1000 -d /app || true
 RUN mkdir -p /app || true
